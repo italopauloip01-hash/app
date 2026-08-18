@@ -1,0 +1,211 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import { Wrench, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+export function Login() {
+    const [isSignUp, setIsSignUp] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    // Auto-redirect if user gets authenticated successfully
+    useEffect(() => {
+        if (user) {
+            navigate('/', { replace: true });
+        }
+    }, [user, navigate]);
+
+    const handleAuth = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setSuccessMsg(null);
+
+        try {
+            if (isSignUp) {
+                if (password !== confirmPassword) {
+                    setError("As senhas não coincidem. Tente novamente.");
+                    setLoading(false);
+                    return;
+                }
+
+                if (password.length < 6) {
+                    setError("A senha deve ter pelo menos 6 caracteres.");
+                    setLoading(false);
+                    return;
+                }
+
+                const { error } = await supabase.auth.signUp({
+                    email,
+                    password,
+                });
+
+                if (error) {
+                    // Translate common Supabase Auth errors to Portuguese
+                    let errorMessage = "Erro ao criar conta.";
+                    if (error.message.includes("User already registered")) {
+                        errorMessage = "Este e-mail já está cadastrado.";
+                    }
+                    setError(errorMessage);
+                    return;
+                }
+
+                setSuccessMsg("Conta criada com sucesso! Por favor, faça login.");
+                setIsSignUp(false);
+                setPassword(''); // clear password for safety
+                setConfirmPassword('');
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password,
+                });
+
+                if (error) {
+                    // Translate common Supabase Auth errors to Portuguese
+                    let errorMessage = "Erro ao fazer login. Verifique suas credenciais.";
+                    if (error.message.includes("Invalid login credentials")) {
+                        errorMessage = "E-mail ou senha incorretos.";
+                    }
+                    setError(errorMessage);
+                    return;
+                }
+
+                // Removed manual navigate('/') to prevent Race Condition
+                // The useEffect will handle the redirect once AuthContext updates
+            }
+        } catch (err: any) {
+            setError(err.message || "Erro inesperado ao realizar autenticação.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
+                <div className="p-8 pb-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center">
+                    <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20">
+                        <Wrench size={32} className="text-white drop-shadow-md" />
+                    </div>
+                    <h1 className="text-2xl font-bold tracking-tight">AirTech Pro</h1>
+                    <p className="text-blue-100 text-sm mt-1">Gestão inteligente para técnicos</p>
+                </div>
+
+                <div className="p-8">
+                    <form onSubmit={handleAuth} className="space-y-6">
+                        {error && (
+                            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-xl flex items-start gap-3 text-red-600 dark:text-red-400">
+                                <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                                <p className="text-sm font-medium">{error}</p>
+                            </div>
+                        )}
+
+                        {successMsg && (
+                            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/30 rounded-xl flex items-start gap-3 text-emerald-600 dark:text-emerald-400">
+                                <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                                <p className="text-sm font-medium">{successMsg}</p>
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">
+                                E-mail de Acesso
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <Mail size={18} className="text-slate-400" />
+                                </div>
+                                <input
+                                    type="email"
+                                    required
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
+                                    placeholder="seu@email.com"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">
+                                Senha
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <Lock size={18} className="text-slate-400" />
+                                </div>
+                                <input
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        </div>
+
+                        {isSignUp && (
+                            <div className="space-y-2 animate-fade-in">
+                                <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest pl-1">
+                                    Confirmar Senha
+                                </label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <Lock size={18} className="text-slate-400" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        required={!!isSignUp}
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/30 active:scale-95 disabled:opacity-70 disabled:pointer-events-none"
+                        >
+                            {loading ? (
+                                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <LogIn size={20} />
+                                    <span>{isSignUp ? 'CRIAR CONTA' : 'ENTRAR NO SISTEMA'}</span>
+                                </>
+                            )}
+                        </button>
+
+                        <div className="text-center pt-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsSignUp(!isSignUp);
+                                    setError(null);
+                                    setSuccessMsg(null);
+                                    setPassword('');
+                                    setConfirmPassword('');
+                                }}
+                                className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+                            >
+                                {isSignUp ? 'Já possui conta? Faça login' : 'Criar nova conta'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+}
