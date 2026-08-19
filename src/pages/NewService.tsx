@@ -103,7 +103,7 @@ export function NewService() {
     }, [isEditing, state]);
 
     const calculateTotal = () => {
-        return items.reduce((total, item) => total + (item.price * (Number(item.quantity) || 1)), 0);
+        return items.reduce((total, item) => total + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
     };
 
     const handleTemplateSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -209,20 +209,27 @@ export function NewService() {
             setIsSaving(true);
             const totalPrice = calculateTotal();
 
+            const primaryItem = items && items.length > 0 ? items[0] : { type: 'Serviço', description: '' };
+
             const serviceData: Omit<Service, 'id'> = {
                 clientId: clientId,
                 date: parseLocalDate(date),
                 nextServiceDate: isNextMaintenanceEnabled && nextDate ? parseLocalDate(nextDate) : parseLocalDate(date),
                 // Keep the primary type/desc from the first item for dashboard/legacy compatibility
-                type: items[0].type,
-                description: items[0].description,
-                items: items.map(item => ({ ...item, quantity: Number(item.quantity) || 1 })),
-                price: totalPrice,
+                type: primaryItem.type || 'Serviço',
+                description: primaryItem.description || '',
+                items: (items || []).map(item => ({
+                    ...item,
+                    type: item.type || 'Serviço',
+                    quantity: Number(item.quantity) || 1,
+                    price: Number(item.price) || 0
+                })),
+                price: Number(totalPrice) || 0,
                 photos: [],
-                photosBefore,
-                photosAfter,
-                status: status,
-                paymentStatus: paymentStatus,
+                photosBefore: photosBefore || [],
+                photosAfter: photosAfter || [],
+                status: status || 'Concluído',
+                paymentStatus: paymentStatus || 'Pendente',
                 paymentMethod: paymentStatus === 'Pago' ? paymentMethod : undefined
             };
 

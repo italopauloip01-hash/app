@@ -204,7 +204,7 @@ export function Services() {
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-blue-50 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Faturamento</p>
-                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {monthlyRevenue.toFixed(2)}</h3>
+                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {(Number(monthlyRevenue) || 0).toFixed(2)}</h3>
                                 </div>
                             </div>
 
@@ -214,7 +214,7 @@ export function Services() {
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-red-50 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Custos</p>
-                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {monthlyHelperCost.toFixed(2)}</h3>
+                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {(Number(monthlyHelperCost) || 0).toFixed(2)}</h3>
                                 </div>
                             </div>
 
@@ -224,7 +224,7 @@ export function Services() {
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-emerald-50 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Lucro Real</p>
-                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {netProfit.toFixed(2)}</h3>
+                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {(Number(netProfit) || 0).toFixed(2)}</h3>
                                 </div>
                             </div>
                         </div>
@@ -285,7 +285,7 @@ export function Services() {
 
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800/50 min-w-0">
                                             <div className="text-left sm:text-right flex flex-col sm:items-end gap-0.5 min-w-0 flex-shrink">
-                                                <p className="font-bold text-slate-800 dark:text-white tracking-tight text-[13px] sm:text-base truncate">R$ {service.price.toFixed(2)}</p>
+                                                <p className="font-bold text-slate-800 dark:text-white tracking-tight text-[13px] sm:text-base truncate">R$ {(Number(service.price) || 0).toFixed(2)}</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
                                                         ${service.paymentStatus === 'Pago' ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
