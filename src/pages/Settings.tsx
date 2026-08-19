@@ -638,13 +638,16 @@ export function Settings() {
                 </div>
             </form>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                <p className="text-xs text-slate-500 dark:text-slate-400 text-center font-medium">
-                    As informações cadastradas aqui serão utilizadas para personalizar a interface e gerar documentos profissionais para seus clientes.
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium text-center sm:text-left">
+                    AirTech Pro • Aplicativo de Gestão para Climatização
                 </p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center font-black uppercase tracking-widest mt-3">
-                    AirTech Pro • Versão 3.0
-                </p>
+                <div className="flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                        Versão 3.1.0 (Produção PWA)
+                    </span>
+                </div>
             </div>
         </div>
     );
