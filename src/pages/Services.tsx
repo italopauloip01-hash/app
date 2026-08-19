@@ -11,9 +11,8 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import * as XLSX from 'xlsx';
-import { ptBR } from 'date-fns/locale';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { formatLocalDate, getYearMonth } from '../utils/dateUtils';
+import { formatLocalDate, getYearMonth, getMonthName, getYearFromYearMonth } from '../utils/dateUtils';
 
 export function Services() {
     const [activeTab, setActiveTab] = useState<'history' | 'templates'>('history');
@@ -185,11 +184,11 @@ export function Services() {
                             </button>
 
                             <div className="flex flex-col items-center">
-                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-                                    {format(new Date(selectedMonth + "-02"), "yyyy", { locale: ptBR })}
+                                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider notranslate">
+                                    {getYearFromYearMonth(selectedMonth)}
                                 </span>
-                                <h2 className="text-lg font-bold text-slate-800 dark:text-white capitalize">
-                                    {format(new Date(selectedMonth + "-02"), "MMMM", { locale: ptBR })}
+                                <h2 className="text-lg font-bold text-slate-800 dark:text-white notranslate">
+                                    {getMonthName(selectedMonth)}
                                 </h2>
                             </div>
 

@@ -44,9 +44,6 @@ export const formatSimpleDate = (date: Date | string | number): string => {
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-/**
- * Returns YYYY-MM safely without timezone shift bugs.
- */
 export const getYearMonth = (date: Date | string | number | any): string => {
     if (!date) return '';
     if (typeof date === 'string' && date.includes('-')) {
@@ -61,4 +58,32 @@ export const getYearMonth = (date: Date | string | number | any): string => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     return `${y}-${m}`;
+};
+
+export const MONTH_NAMES_PT = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+/**
+ * Returns month name in Portuguese explicitly (e.g. "Agosto")
+ */
+export const getMonthName = (yearMonth: string): string => {
+    if (!yearMonth) return '';
+    const parts = yearMonth.split('-');
+    if (parts.length >= 2) {
+        const monthIndex = parseInt(parts[1], 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+            return MONTH_NAMES_PT[monthIndex];
+        }
+    }
+    return '';
+};
+
+/**
+ * Returns year string (e.g. "2026")
+ */
+export const getYearFromYearMonth = (yearMonth: string): string => {
+    if (!yearMonth) return '';
+    return yearMonth.split('-')[0];
 };
