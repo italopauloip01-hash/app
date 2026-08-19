@@ -15,6 +15,7 @@ import {
 import { useState, useEffect } from 'react';
 import { syncDatabase, onSyncStateChange, subscribeToRealtime, unsubscribeFromRealtime } from '../lib/supabaseOperations';
 import { OfflineIndicator } from './OfflineIndicator';
+import { APP_VERSION } from '../version';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 const NavItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon: any, label: string, active: boolean, onClick?: () => void }) => (
@@ -145,7 +146,7 @@ export function Layout() {
                         </button>
                     </div>
                     <div className="text-[10px] text-center text-slate-400 dark:text-slate-500 font-mono mt-3">
-                        AirTech Pro • <span className="font-bold text-blue-500">v3.1.0</span>
+                        AirTech Pro • <span className="font-bold text-blue-500">v{APP_VERSION}</span>
                     </div>
                 </div>
             </aside>
@@ -171,7 +172,7 @@ export function Layout() {
                                             location.pathname === '/estimates' ? 'Orçamentos' : 'Visão Geral'}
                         </h2>
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
-                            v3.1.0
+                            v{APP_VERSION}
                         </span>
                     </div>
 

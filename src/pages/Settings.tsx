@@ -3,6 +3,7 @@ import { Save, Building2, Smartphone, MapPin, CreditCard, Mail, User, FileJson, 
 import { useSettings, useHelpers } from '../hooks/useData';
 import { addHelper, deleteHelper, saveSettings, syncDatabase } from '../lib/supabaseOperations';
 import { exportDatabase, importDatabase } from '../utils/backup';
+import { APP_VERSION } from '../version';
 import type { Helper } from '../types';
 
 export function Settings() {
@@ -645,7 +646,7 @@ export function Settings() {
                 <div className="flex items-center gap-2">
                     <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                        Versão 3.1.0 (Produção PWA)
+                        Versão {APP_VERSION} (Produção PWA)
                     </span>
                 </div>
             </div>
