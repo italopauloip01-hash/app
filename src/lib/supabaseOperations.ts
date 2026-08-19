@@ -507,13 +507,10 @@ export async function syncDatabase() {
                 continue;
             }
 
-            // 6. Overwrite local Dexie (Safe Sync)
+            // 6. Update local Dexie smoothly without clearing (prevents screen flickering)
             if (remoteData && remoteData.length > 0) {
                 const pullRecords = remoteData.map(r => toCamel(r as Record<string, unknown>));
-                await (table.dexie as any).clear();
                 await (table.dexie as any).bulkPut(pullRecords as any[]);
-            } else if (remoteData && remoteData.length === 0 && localRecords.length > 0) {
-                console.warn(`Shielding local data for ${table.name}: remote is mysteriously empty despite successful push. Keeping local.`);
             }
         }
 
