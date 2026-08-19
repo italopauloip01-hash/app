@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check } from 'lucide-react';
+import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check, X, RotateCcw, Ban } from 'lucide-react';
 import { useDashboardStats, useReminders } from '../hooks/useData';
 import { useNavigate } from 'react-router-dom';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatLocalDate } from '../utils/dateUtils';
-import { db } from '../db';
-import { syncDatabase } from '../lib/supabaseOperations';
+import { updateService } from '../lib/supabaseOperations';
 
 const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: any) => (
     <div
@@ -35,8 +34,10 @@ const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: any) => (
 export function Dashboard() {
     const navigate = useNavigate();
     const stats = useDashboardStats();
-    const reminders = useReminders() || [];
+    const reminders = useReminders(false) || [];
+    const ignoredReminders = useReminders(true) || [];
     const [maintenanceWindow, setMaintenanceWindow] = useState(30);
+    const [showIgnored, setShowIgnored] = useState(false);
 
     if (!stats) return (
         <div className="flex items-center justify-center min-h-[400px]">
@@ -44,9 +45,11 @@ export function Dashboard() {
         </div>
     );
 
-    // Filter based on selected window
+    // Active reminders
     const urgentReminders = reminders?.filter(r => r.daysRemaining <= 7);
-    const upcomingServices = reminders?.filter(r => r.daysRemaining <= maintenanceWindow);
+    const upcomingServices = showIgnored 
+        ? ignoredReminders 
+        : reminders?.filter(r => r.daysRemaining <= maintenanceWindow);
 
     const windowOptions = [
         { label: '7 dias', value: 7 },
@@ -69,7 +72,6 @@ export function Dashboard() {
         e.stopPropagation();
 
         if (service.isReminder) {
-            // Maintenance Reminder -> Prefill new service form
             navigate('/services/new', {
                 state: {
                     clientId: service.clientId,
@@ -83,21 +85,42 @@ export function Dashboard() {
                 }
             });
         } else {
-            // Scheduled Service (Agendado) -> Direct update to Concluído
             try {
-                await db.services.update(service.id, {
+                await updateService(service.id, {
                     status: 'Concluído',
                     date: new Date()
                 });
-                await syncDatabase();
-                // useReminders will auto-update via Dexie if implemented with liveQuery,
-                // but useReminders currently uses a manual useEffect state.
-                // However, db change triggers live queries globally.
-                // Wait, useReminders in hooks/useData.ts is NOT a liveQuery currently.
-                // It uses an internal state. I might need to refresh or convert it.
             } catch (error) {
                 console.error("Error marking service as realized:", error);
             }
+        }
+    };
+
+    const handleIgnoreReminder = async (e: React.MouseEvent, service: any) => {
+        e.stopPropagation();
+        if (window.confirm(`Deseja marcar este serviço de ${service.clientName} como "Não Realizar"? Ele sairá dos alertas.`)) {
+            try {
+                await updateService(service.id, {
+                    reminderIgnored: true,
+                    reminderIgnoredAt: new Date(),
+                    ...(service.status === 'Agendado' ? { status: 'Cancelado' } : {})
+                });
+            } catch (error) {
+                console.error("Error ignoring reminder:", error);
+            }
+        }
+    };
+
+    const handleRestoreReminder = async (e: React.MouseEvent, service: any) => {
+        e.stopPropagation();
+        try {
+            await updateService(service.id, {
+                reminderIgnored: false,
+                reminderIgnoredAt: undefined,
+                ...(service.status === 'Cancelado' ? { status: 'Agendado' } : {})
+            });
+        } catch (error) {
+            console.error("Error restoring reminder:", error);
         }
     };
 
@@ -151,31 +174,52 @@ export function Dashboard() {
                     {/* Upcoming Maintenance List */}
                     <div className="glass-panel p-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                <Calendar className="text-blue-500" size={20} />
-                                Próximas Manutenções
-                            </h3>
-
-                            <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
-                                {windowOptions.map((opt) => (
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Calendar className={showIgnored ? "text-red-500" : "text-blue-500"} size={20} />
+                                    {showIgnored ? 'Serviços Ignorados / Não Realizar' : 'Próximas Manutenções'}
+                                </h3>
+                                {ignoredReminders.length > 0 && (
                                     <button
-                                        key={opt.value}
-                                        onClick={() => setMaintenanceWindow(opt.value)}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all
-                                            ${maintenanceWindow === opt.value
-                                                ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
-                                        `}
+                                        onClick={() => setShowIgnored(!showIgnored)}
+                                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                            showIgnored 
+                                                ? 'bg-red-500 text-white shadow-md' 
+                                                : 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50 hover:bg-red-100'
+                                        }`}
                                     >
-                                        {opt.label}
+                                        <Ban size={12} />
+                                        <span>{showIgnored ? 'Ver Pendentes' : `Não Realizar (${ignoredReminders.length})`}</span>
                                     </button>
-                                ))}
+                                )}
                             </div>
+
+                            {!showIgnored && (
+                                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl w-full sm:w-auto overflow-x-auto no-scrollbar">
+                                    {windowOptions.map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => setMaintenanceWindow(opt.value)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all
+                                                ${maintenanceWindow === opt.value
+                                                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
+                                            `}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {!upcomingServices || upcomingServices.length === 0 ? (
                             <div className="text-center py-12 text-slate-400 dark:text-slate-600 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl">
-                                <p>Nenhuma manutenção agendada para {maintenanceWindow >= 60 ? `os próximos ${maintenanceWindow / 30} meses` : `os próximos ${maintenanceWindow} dias`}.</p>
+                                <p>
+                                    {showIgnored 
+                                        ? 'Nenhum serviço marcado como "Não Realizar".' 
+                                        : `Nenhuma manutenção agendada para ${maintenanceWindow >= 60 ? `os próximos ${maintenanceWindow / 30} meses` : `os próximos ${maintenanceWindow} dias`}.`}
+                                </p>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -183,9 +227,11 @@ export function Dashboard() {
                                     <div key={service.id} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border border-transparent hover:border-slate-100 dark:hover:border-slate-700 cursor-pointer group" onClick={() => navigate(`/clients/${service.clientId}`)}>
                                         <div className="flex items-center gap-4">
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors
-                                                ${service.isReminder
-                                                    ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 group-hover:bg-orange-600 group-hover:text-white'
-                                                    : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white'}
+                                                ${showIgnored
+                                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                                                    : service.isReminder
+                                                        ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 group-hover:bg-orange-600 group-hover:text-white'
+                                                        : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white'}
                                             `}>
                                                 {new Date(service.displayDate).getDate()}
                                             </div>
@@ -194,6 +240,9 @@ export function Dashboard() {
                                                     <h4 className="font-semibold text-slate-800 dark:text-white">{service.type}</h4>
                                                     {service.isReminder && (
                                                         <span className="text-[8px] font-black bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 px-1 rounded">MANUTENÇÃO</span>
+                                                    )}
+                                                    {showIgnored && (
+                                                        <span className="text-[8px] font-black bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-1 rounded">IGNORADO</span>
                                                     )}
                                                 </div>
                                                 <p className="text-sm text-slate-500 dark:text-slate-400">{service.clientName}</p>
@@ -218,13 +267,33 @@ export function Dashboard() {
                                                     {new Date(service.displayDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                                                 </span>
                                             </div>
-                                            <button
-                                                onClick={(e) => handleMarkAsRealized(e, service)}
-                                                className="p-2 ml-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800/50 shadow-sm"
-                                                title="Marcar como Realizado"
-                                            >
-                                                <Check size={18} />
-                                            </button>
+                                            
+                                            {showIgnored ? (
+                                                <button
+                                                    onClick={(e) => handleRestoreReminder(e, service)}
+                                                    className="p-2 ml-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all active:scale-95 border border-blue-200 dark:border-blue-800/50 shadow-sm"
+                                                    title="Reativar Manutenção"
+                                                >
+                                                    <RotateCcw size={18} />
+                                                </button>
+                                            ) : (
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={(e) => handleMarkAsRealized(e, service)}
+                                                        className="p-2 ml-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-95 border border-emerald-100 dark:border-emerald-800/50 shadow-sm"
+                                                        title="Marcar como Realizado"
+                                                    >
+                                                        <Check size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleIgnoreReminder(e, service)}
+                                                        className="p-2 bg-red-50 dark:bg-red-900/20 text-red-500 hover:text-red-700 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-all active:scale-95 border border-red-100 dark:border-red-800/50 shadow-sm"
+                                                        title="Não Realizar / Ignorar"
+                                                    >
+                                                        <X size={18} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -344,6 +413,13 @@ export function Dashboard() {
                                             >
                                                 Zap
                                             </a>
+                                            <button
+                                                onClick={(e) => handleIgnoreReminder(e, reminder)}
+                                                className="px-2.5 py-2 bg-red-50 dark:bg-red-950/40 text-red-500 hover:text-red-700 dark:text-red-400 border border-red-100 dark:border-red-900/50 rounded-lg hover:bg-red-100 transition-all active:scale-95"
+                                                title="Não Realizar / Ignorar"
+                                            >
+                                                <X size={14} />
+                                            </button>
                                             <button
                                                 onClick={() => navigate(`/clients/${reminder.clientId}`)}
                                                 className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-[10px] font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all active:scale-95 uppercase"

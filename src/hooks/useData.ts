@@ -43,7 +43,7 @@ export function useServiceTemplates() {
     return useLiveQuery(() => db.serviceTemplates.orderBy('name').toArray());
 }
 
-export function useReminders() {
+export function useReminders(includeIgnored: boolean = false) {
     return useLiveQuery(async () => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -55,21 +55,29 @@ export function useReminders() {
 
         const clientMap = new Map(clients.map(c => [c.id!, c]));
 
+        // Filtra se queremos os ativos ou os ignorados
+        const filteredServices = allServices.filter(s => {
+            if (includeIgnored) {
+                return s.reminderIgnored === true || s.status === 'Cancelado';
+            }
+            return s.reminderIgnored !== true && s.status !== 'Cancelado';
+        });
+
         // Latest completed service per client
         const latestCompletedPerClient = new Map<string, typeof allServices[0]>();
-        allServices
+        filteredServices
             .filter(s => s.status === 'Concluído')
             .forEach(s => {
                 const existing = latestCompletedPerClient.get(s.clientId);
-                if (!existing || new Date(s.date) > new Date(existing.date)) {
+                if (!existing || parseLocalDate(s.date) > parseLocalDate(existing.date)) {
                     latestCompletedPerClient.set(s.clientId, s);
                 }
             });
 
-        const scheduledServices = allServices.filter(s => s.status === 'Agendado');
+        const scheduledServices = filteredServices.filter(s => s.status === 'Agendado' || (includeIgnored && s.status === 'Cancelado'));
 
         const reminderItems = Array.from(latestCompletedPerClient.values()).map(s => {
-            const nextDate = new Date(s.nextServiceDate);
+            const nextDate = parseLocalDate(s.nextServiceDate);
             nextDate.setHours(0, 0, 0, 0);
             const diffTime = nextDate.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -82,7 +90,7 @@ export function useReminders() {
         });
 
         const scheduled = scheduledServices.map(s => {
-            const serviceDate = new Date(s.date);
+            const serviceDate = parseLocalDate(s.date);
             serviceDate.setHours(0, 0, 0, 0);
             const diffTime = serviceDate.getTime() - today.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -100,9 +108,9 @@ export function useReminders() {
                 clientName: clientMap.get(item.clientId)?.name || 'Desconhecido',
                 clientPhone: clientMap.get(item.clientId)?.phone || '',
             }))
-            .filter(r => r.daysRemaining >= -7)
+            .filter(r => includeIgnored ? true : r.daysRemaining >= -7)
             .sort((a, b) => a.daysRemaining - b.daysRemaining);
-    }, []);
+    }, [includeIgnored]);
 }
 
 export function useDashboardStats() {

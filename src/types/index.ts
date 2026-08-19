@@ -43,9 +43,11 @@ export interface Service {
     photosBefore?: string[];
     photosAfter?: string[];
     price: number; // Total price
-    status: 'Agendado' | 'Concluído' | 'Pendente';
+    status: 'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado';
     paymentStatus: 'Pago' | 'Pendente';
     paymentMethod?: 'Dinheiro' | 'Cartão' | 'Pix' | 'Transferência';
+    reminderIgnored?: boolean;
+    reminderIgnoredAt?: Date;
 }
 
 export interface CompanySettings {

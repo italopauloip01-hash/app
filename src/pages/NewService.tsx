@@ -26,7 +26,7 @@ export function NewService() {
     const [nextDate, setNextDate] = useState('');
     const [photosBefore, setPhotosBefore] = useState<string[]>([]);
     const [photosAfter, setPhotosAfter] = useState<string[]>([]);
-    const [status, setStatus] = useState<'Agendado' | 'Concluído' | 'Pendente'>('Concluído');
+    const [status, setStatus] = useState<'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado'>('Concluído');
     const [paymentStatus, setPaymentStatus] = useState<'Pago' | 'Pendente'>('Pendente');
     const [paymentMethod, setPaymentMethod] = useState<'Dinheiro' | 'Cartão' | 'Pix' | 'Transferência'>('Pix');
     const [items, setItems] = useState<any[]>(
