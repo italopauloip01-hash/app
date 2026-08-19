@@ -40,8 +40,8 @@ export function Services() {
         return getYearMonth(e.date) === selectedMonth && e.type === 'work';
     });
 
-    const monthlyRevenue = filteredServices.reduce((acc, curr) => acc + curr.price, 0);
-    const monthlyHelperCost = filteredHelperEntries.reduce((acc, curr) => acc + curr.amount, 0);
+    const monthlyRevenue = filteredServices.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
+    const monthlyHelperCost = filteredHelperEntries.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     const netProfit = monthlyRevenue - monthlyHelperCost;
 
     const changeMonth = (months: number) => {

@@ -1,59 +1,105 @@
 /**
- * Utility to parse a YYYY-MM-DD string as a local Date object.
- * This prevents the timezone offset bug where new Date('2026-02-12') 
- * is interpreted as UTC and shifts back one day in some timezones.
+ * Converte qualquer formato de data (ISO, DD/MM/YYYY, Timestamp, Date, UTC) 
+ * para um Date local exato sem bugs de fuso horário.
  */
-export const parseLocalDate = (dateString: string | Date | any): Date => {
-    if (!dateString) return new Date();
-    // Se já for Date e for válido, retorne ele.
-    if (dateString instanceof Date) {
-        return isNaN(dateString.getTime()) ? new Date() : dateString;
+export const parseLocalDate = (dateInput: any): Date => {
+    if (!dateInput) return new Date();
+    if (dateInput instanceof Date) {
+        if (isNaN(dateInput.getTime())) return new Date();
+        return new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate());
     }
 
-    if (typeof dateString !== 'string') return new Date();
+    if (typeof dateInput === 'number') {
+        const d = new Date(dateInput);
+        return isNaN(d.getTime()) ? new Date() : d;
+    }
 
-    try {
-        const parts = dateString.split('-');
-        if (parts.length < 3) return new Date(dateString); // Try native parse as fallback
+    if (typeof dateInput !== 'string') return new Date();
 
-        const year = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10);
-        const day = parseInt(parts[2], 10); // isso já corta o "T"
+    const cleanStr = dateInput.trim();
 
-        if (isNaN(year) || isNaN(month) || isNaN(day)) {
-            const fallback = new Date(dateString);
-            return isNaN(fallback.getTime()) ? new Date() : fallback;
+    // Formato Brasileiro: DD/MM/YYYY
+    if (cleanStr.includes('/')) {
+        const parts = cleanStr.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                return new Date(year, month - 1, day);
+            }
         }
-
-        return new Date(year, month - 1, day);
-    } catch (error) {
-        return new Date();
     }
+
+    // Formato ISO: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+    if (cleanStr.includes('-')) {
+        const parts = cleanStr.split('T')[0].split('-');
+        if (parts.length >= 3) {
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const day = parseInt(parts[2], 10);
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                return new Date(year, month - 1, day);
+            }
+        }
+    }
+
+    const fallback = new Date(dateInput);
+    return isNaN(fallback.getTime()) ? new Date() : fallback;
 };
 
 /**
- * Formats a Date object as a local dd/mm/yyyy string.
+ * Formats a Date object as a local dd/mm/yyyy string safely.
  */
-export const formatLocalDate = (date: Date | string | number): string => {
-    const d = new Date(date);
+export const formatLocalDate = (date: any): string => {
+    if (!date) return '';
+    const d = parseLocalDate(date);
     return d.toLocaleDateString('pt-BR');
 };
 
-export const formatSimpleDate = (date: Date | string | number): string => {
-    const d = new Date(date);
+/**
+ * Formats date as dd/mm safely.
+ */
+export const formatSimpleDate = (date: any): string => {
+    if (!date) return '';
+    const d = parseLocalDate(date);
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
 
-export const getYearMonth = (date: Date | string | number | any): string => {
+/**
+ * Returns YYYY-MM safely from any date representation.
+ */
+export const getYearMonth = (date: any): string => {
     if (!date) return '';
-    if (typeof date === 'string' && date.includes('-')) {
-        const parts = date.split('-');
-        if (parts.length >= 2) {
-            const year = parts[0].trim();
-            const month = parts[1].padStart(2, '0');
-            return `${year}-${month}`;
+
+    if (date instanceof Date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        return `${y}-${m}`;
+    }
+
+    if (typeof date === 'string') {
+        const clean = date.trim();
+        // DD/MM/YYYY
+        if (clean.includes('/')) {
+            const parts = clean.split('/');
+            if (parts.length === 3) {
+                const month = parts[1].padStart(2, '0');
+                const year = parts[2].substring(0, 4);
+                return `${year}-${month}`;
+            }
+        }
+        // YYYY-MM-DD
+        if (clean.includes('-')) {
+            const parts = clean.split('T')[0].split('-');
+            if (parts.length >= 2) {
+                const year = parts[0].trim();
+                const month = parts[1].padStart(2, '0');
+                return `${year}-${month}`;
+            }
         }
     }
+
     const d = parseLocalDate(date);
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
