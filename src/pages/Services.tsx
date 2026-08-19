@@ -13,7 +13,7 @@ import { Share } from '@capacitor/share';
 import * as XLSX from 'xlsx';
 import { ptBR } from 'date-fns/locale';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { formatLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, getYearMonth } from '../utils/dateUtils';
 
 export function Services() {
     const [activeTab, setActiveTab] = useState<'history' | 'templates'>('history');
@@ -34,14 +34,11 @@ export function Services() {
     };
 
     const filteredServices = services.filter(s => {
-        const serviceMonth = format(new Date(s.date), 'yyyy-MM');
-        return serviceMonth === selectedMonth;
+        return getYearMonth(s.date) === selectedMonth;
     });
 
     const filteredHelperEntries = helperEntries.filter(e => {
-        const d = e.date instanceof Date ? e.date : new Date(e.date);
-        const entryMonth = format(d, 'yyyy-MM');
-        return entryMonth === selectedMonth && e.type === 'work';
+        return getYearMonth(e.date) === selectedMonth && e.type === 'work';
     });
 
     const monthlyRevenue = filteredServices.reduce((acc, curr) => acc + curr.price, 0);

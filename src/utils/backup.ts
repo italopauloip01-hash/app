@@ -159,6 +159,14 @@ export async function importDatabase(file: File) {
                     }
                 });
 
+                // Envia os dados importados imediatamente para o Supabase
+                try {
+                    const { syncDatabase } = await import('../lib/supabaseOperations');
+                    syncDatabase().catch(console.error);
+                } catch (e) {
+                    console.error('Auto-sync post import error:', e);
+                }
+
                 resolve(true);
             } catch (error) {
                 console.error('Import failed:', error);

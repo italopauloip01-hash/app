@@ -1,6 +1,8 @@
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { CompanySettings } from '../types';
+import { getYearMonth, parseLocalDate } from '../utils/dateUtils';
+import { format } from 'date-fns';
 
 // ============================================
 // Exported Hooks (Pure Local / Dexie)
@@ -106,9 +108,9 @@ export function useReminders() {
 export function useDashboardStats() {
     return useLiveQuery(async () => {
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        const currentYearMonth = format(now, 'yyyy-MM');
+        const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastYearMonth = format(lastMonthDate, 'yyyy-MM');
 
         const [allServices, allClients, allHelperEntries] = await Promise.all([
             db.services.toArray(),
@@ -119,29 +121,23 @@ export function useDashboardStats() {
         const clientMap = new Map(allClients.map(c => [c.id!, c.name]));
 
         const currentRevenue = allServices
-            .filter(s => new Date(s.date) >= startOfMonth)
-            .reduce((acc, s) => acc + s.price, 0);
+            .filter(s => getYearMonth(s.date) === currentYearMonth)
+            .reduce((acc, s) => acc + (Number(s.price) || 0), 0);
 
         const lastMonthRevenue = allServices
-            .filter(s => {
-                const d = new Date(s.date);
-                return d >= startOfLastMonth && d <= endOfLastMonth;
-            })
-            .reduce((acc, s) => acc + s.price, 0);
+            .filter(s => getYearMonth(s.date) === lastYearMonth)
+            .reduce((acc, s) => acc + (Number(s.price) || 0), 0);
 
         const currentHelperCost = allHelperEntries
-            .filter(e => e.type === 'work' && new Date(e.date) >= startOfMonth)
-            .reduce((acc, e) => acc + e.amount, 0);
+            .filter(e => e.type === 'work' && getYearMonth(e.date) === currentYearMonth)
+            .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
         const lastMonthHelperCost = allHelperEntries
-            .filter(e => {
-                const d = new Date(e.date);
-                return e.type === 'work' && d >= startOfLastMonth && d <= endOfLastMonth;
-            })
-            .reduce((acc, e) => acc + e.amount, 0);
+            .filter(e => e.type === 'work' && getYearMonth(e.date) === lastYearMonth)
+            .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
         const recentServices = allServices
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
             .slice(0, 5)
             .map(s => ({
                 ...s,

@@ -43,3 +43,22 @@ export const formatSimpleDate = (date: Date | string | number): string => {
     const d = new Date(date);
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 };
+
+/**
+ * Returns YYYY-MM safely without timezone shift bugs.
+ */
+export const getYearMonth = (date: Date | string | number | any): string => {
+    if (!date) return '';
+    if (typeof date === 'string' && date.includes('-')) {
+        const parts = date.split('-');
+        if (parts.length >= 2) {
+            const year = parts[0].trim();
+            const month = parts[1].padStart(2, '0');
+            return `${year}-${month}`;
+        }
+    }
+    const d = parseLocalDate(date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+};
