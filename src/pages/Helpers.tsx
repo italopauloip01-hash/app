@@ -4,8 +4,8 @@ import { db } from '../db';
 import { addHelper, deleteHelper, addHelperEntry, deleteHelperEntry, updateHelperEntry } from '../lib/supabaseOperations';
 import { useHelpers } from '../hooks/useData';
 import { Users, DollarSign, Plus, Trash2, Briefcase, X, Calendar, Edit2 } from 'lucide-react';
-import { format, isSameMonth, parseISO } from 'date-fns';
-import { parseLocalDate } from '../utils/dateUtils';
+import { format } from 'date-fns';
+import { parseLocalDate, getYearMonth, parseMonetaryValue } from '../utils/dateUtils';
 import type { HelperEntry } from '../types';
 
 export function Helpers() {
@@ -133,11 +133,11 @@ export function Helpers() {
     };
 
     const filteredHelperEntries = helperEntries?.filter(entry => {
-        return referenceMonth ? isSameMonth(new Date(entry.date), parseISO(`${referenceMonth}-01`)) : true;
+        return referenceMonth ? getYearMonth(entry.date) === referenceMonth : true;
     });
 
-    const totalWork = filteredHelperEntries?.filter(e => e.type === 'work').reduce((acc, curr) => acc + curr.amount, 0) || 0;
-    const totalPaid = filteredHelperEntries?.filter(e => e.type === 'payment').reduce((acc, curr) => acc + curr.amount, 0) || 0;
+    const totalWork = filteredHelperEntries?.filter(e => e.type === 'work').reduce((acc, curr) => acc + parseMonetaryValue(curr.amount), 0) || 0;
+    const totalPaid = filteredHelperEntries?.filter(e => e.type === 'payment').reduce((acc, curr) => acc + parseMonetaryValue(curr.amount), 0) || 0;
     const balance = totalWork - totalPaid;
 
     return (
@@ -230,14 +230,14 @@ export function Helpers() {
                                         <Briefcase size={18} />
                                         <span className="text-xs font-bold uppercase tracking-wider">Total Trabalhado</span>
                                     </div>
-                                    <p className="text-2xl font-black text-slate-800 dark:text-white">R$ {totalWork.toFixed(2)}</p>
+                                    <p className="text-2xl font-black text-slate-800 dark:text-white">R$ {(Number(totalWork) || 0).toFixed(2)}</p>
                                 </div>
                                 <div className="glass-panel p-6 border-l-4 border-l-emerald-500">
                                     <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
                                         <DollarSign size={18} />
                                         <span className="text-xs font-bold uppercase tracking-wider">Total Pago</span>
                                     </div>
-                                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">R$ {totalPaid.toFixed(2)}</p>
+                                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">R$ {(Number(totalPaid) || 0).toFixed(2)}</p>
                                 </div>
                                 <div className={`glass-panel p-6 border-l-4 ${balance > 0 ? 'border-l-red-500' : 'border-l-slate-400'}`}>
                                     <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
@@ -245,7 +245,7 @@ export function Helpers() {
                                         <span className="text-xs font-bold uppercase tracking-wider">Saldo Devedor</span>
                                     </div>
                                     <p className={`text-2xl font-black ${balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                                        R$ {balance.toFixed(2)}
+                                        R$ {(Number(balance) || 0).toFixed(2)}
                                     </p>
                                 </div>
                             </div>
@@ -312,7 +312,7 @@ export function Helpers() {
                                                         </td>
                                                         <td className="px-6 py-4 text-right">
                                                             <span className={`text-sm font-bold ${entry.type === 'work' ? 'text-slate-700 dark:text-slate-300' : 'text-emerald-600'}`}>
-                                                                {entry.type === 'payment' && '- '}R$ {entry.amount.toFixed(2)}
+                                                                {entry.type === 'payment' && '- '}R$ {(parseMonetaryValue(entry.amount)).toFixed(2)}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4 text-right no-print">

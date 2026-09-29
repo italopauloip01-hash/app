@@ -110,7 +110,7 @@ export function Estimates() {
                                 <div className="py-2 border-y border-slate-100 dark:border-slate-800">
                                     <div className="flex justify-between items-center text-xs">
                                         <span className="text-slate-500">{estimate.items.length} {estimate.items.length === 1 ? 'item' : 'itens'}</span>
-                                        <span className="font-black text-slate-800 dark:text-white">R$ {estimate.total.toFixed(2)}</span>
+                                        <span className="font-black text-slate-800 dark:text-white">R$ {(Number(estimate.total) || 0).toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>

@@ -11,7 +11,7 @@ export const parseLocalDate = (dateInput: any): Date => {
 
     if (typeof dateInput === 'number') {
         const d = new Date(dateInput);
-        return isNaN(d.getTime()) ? new Date() : d;
+        return isNaN(d.getTime()) ? new Date() : new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
 
     if (typeof dateInput !== 'string') return new Date();
@@ -31,9 +31,17 @@ export const parseLocalDate = (dateInput: any): Date => {
         }
     }
 
-    // Formato ISO: YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+    // Se tiver indicador de hora UTC/ISO (T ou Z), converte respeitando o fuso local do navegador
+    if (cleanStr.includes('T') || cleanStr.includes('Z')) {
+        const d = new Date(cleanStr);
+        if (!isNaN(d.getTime())) {
+            return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+    }
+
+    // Formato ISO puro simples: YYYY-MM-DD
     if (cleanStr.includes('-')) {
-        const parts = cleanStr.split('T')[0].split('-');
+        const parts = cleanStr.split('-');
         if (parts.length >= 3) {
             const year = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10);
@@ -45,7 +53,7 @@ export const parseLocalDate = (dateInput: any): Date => {
     }
 
     const fallback = new Date(dateInput);
-    return isNaN(fallback.getTime()) ? new Date() : fallback;
+    return isNaN(fallback.getTime()) ? new Date() : new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate());
 };
 
 /**
@@ -67,12 +75,13 @@ export const formatSimpleDate = (date: any): string => {
 };
 
 /**
- * Returns YYYY-MM safely from any date representation.
+ * Returns YYYY-MM safely from any date representation, sem pular ou errar mês por timezone.
  */
 export const getYearMonth = (date: any): string => {
     if (!date) return '';
 
     if (date instanceof Date) {
+        if (isNaN(date.getTime())) return '';
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         return `${y}-${m}`;
@@ -89,9 +98,9 @@ export const getYearMonth = (date: any): string => {
                 return `${year}-${month}`;
             }
         }
-        // YYYY-MM-DD
-        if (clean.includes('-')) {
-            const parts = clean.split('T')[0].split('-');
+        // Se for string pura YYYY-MM-DD (sem hora T)
+        if (clean.includes('-') && !clean.includes('T') && !clean.includes('Z')) {
+            const parts = clean.split('-');
             if (parts.length >= 2) {
                 const year = parts[0].trim();
                 const month = parts[1].padStart(2, '0');
@@ -100,6 +109,7 @@ export const getYearMonth = (date: any): string => {
         }
     }
 
+    // Para strings ISO completas (com T/Z) ou outros formatos, passa pelo parseLocalDate
     const d = parseLocalDate(date);
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -132,4 +142,52 @@ export const getMonthName = (yearMonth: string): string => {
 export const getYearFromYearMonth = (yearMonth: string): string => {
     if (!yearMonth) return '';
     return yearMonth.split('-')[0];
+};
+
+/**
+ * Converte qualquer representação numérica ou em string (ex: "150,00", "1.250,50", "R$ 300,00", null, NaN)
+ * em um número Float válido com 0 como fallback absoluto.
+ */
+export const parseMonetaryValue = (val: any): number => {
+    if (val === null || val === undefined || val === '') return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    if (typeof val === 'string') {
+        let clean = val.replace(/R\$\s?/g, '').trim();
+        if (clean.includes('.') && clean.includes(',')) {
+            clean = clean.replace(/\./g, '').replace(',', '.');
+        } else if (clean.includes(',')) {
+            clean = clean.replace(',', '.');
+        }
+        const num = parseFloat(clean);
+        return isNaN(num) ? 0 : num;
+    }
+    return 0;
+};
+
+/**
+ * Obtém com segurança o valor real de um serviço, considerando soma dos itens ou preço direto.
+ */
+export const getServicePrice = (service: any): number => {
+    if (!service) return 0;
+    
+    // Se o serviço tiver itens com valor, calcula a soma dos itens
+    if (service.items && Array.isArray(service.items) && service.items.length > 0) {
+        const itemsTotal = service.items.reduce((total: number, item: any) => {
+            const itemPrice = parseMonetaryValue(item?.price);
+            const qty = Number(item?.quantity) || 1;
+            return total + (itemPrice * qty);
+        }, 0);
+        if (itemsTotal > 0) return itemsTotal;
+    }
+
+    // Se não tiver itens ou itemsTotal deu 0, usa service.price
+    return parseMonetaryValue(service.price);
+};
+
+/**
+ * Formata um valor numérico em moeda brasileira de forma 100% blindada contra crash.
+ */
+export const formatCurrency = (val: any): string => {
+    const num = parseMonetaryValue(val);
+    return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };

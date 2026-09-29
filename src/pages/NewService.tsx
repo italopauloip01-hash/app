@@ -6,7 +6,8 @@ import { addService, updateService } from '../lib/supabaseOperations';
 import { useServiceTemplates } from '../hooks/useData';
 import { ArrowLeft, Camera, Calendar, Save, DollarSign, ChevronDown, UserPlus, Plus, Trash2, Loader2 } from 'lucide-react';
 import { ClientForm } from '../components/ClientForm';
-import { parseLocalDate } from '../utils/dateUtils';
+import { parseLocalDate, parseMonetaryValue } from '../utils/dateUtils';
+import { format } from 'date-fns';
 import { compressImage } from '../utils/imageUtils';
 import type { Service, ServiceItem } from '../types';
 
@@ -22,7 +23,7 @@ export function NewService() {
     const [clientId, setClientId] = useState<string>(state?.clientId || '');
 
     // Form State
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [nextDate, setNextDate] = useState('');
     const [photosBefore, setPhotosBefore] = useState<string[]>([]);
     const [photosAfter, setPhotosAfter] = useState<string[]>([]);
@@ -45,9 +46,9 @@ export function NewService() {
             db.services.get(id).then(service => {
                 if (service) {
                     setClientId(service.clientId);
-                    setDate(new Date(service.date).toISOString().split('T')[0]);
+                    setDate(format(parseLocalDate(service.date), 'yyyy-MM-dd'));
                     if (service.nextServiceDate) {
-                        setNextDate(new Date(service.nextServiceDate).toISOString().split('T')[0]);
+                        setNextDate(format(parseLocalDate(service.nextServiceDate), 'yyyy-MM-dd'));
                     }
                     setPhotosBefore(service.photosBefore || []);
                     setPhotosAfter(service.photosAfter || []);
@@ -88,9 +89,9 @@ export function NewService() {
         );
 
         if (date && hasCleaning) {
-            const d = new Date(date);
+            const d = parseLocalDate(date);
             d.setMonth(d.getMonth() + 6);
-            setNextDate(d.toISOString().split('T')[0]);
+            setNextDate(format(d, 'yyyy-MM-dd'));
         }
     }, [date, items, isNextMaintenanceEnabled]);
 
@@ -103,7 +104,7 @@ export function NewService() {
     }, [isEditing, state]);
 
     const calculateTotal = () => {
-        return items.reduce((total, item) => total + ((Number(item.price) || 0) * (Number(item.quantity) || 1)), 0);
+        return items.reduce((total, item) => total + (parseMonetaryValue(item.price) * (Number(item.quantity) || 1)), 0);
     };
 
     const handleTemplateSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {

@@ -151,7 +151,7 @@ export function Dashboard() {
                 />
                 <StatCard
                     title="Gasto Ajudantes"
-                    value={`R$ ${stats.currentHelperCost.toLocaleString('pt-BR') || 0}`}
+                    value={`R$ ${(stats.currentHelperCost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     trend={helperTrend}
                     icon={Users}
                     color="bg-red-500 text-red-600"
@@ -159,7 +159,7 @@ export function Dashboard() {
                 />
                 <StatCard
                     title="Receita Estimada"
-                    value={`R$ ${stats.currentRevenue.toLocaleString('pt-BR') || 0}`}
+                    value={`R$ ${(stats.currentRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     trend={revenueTrend}
                     icon={ArrowUpRight}
                     color="bg-green-500 text-green-600"
@@ -364,8 +364,8 @@ export function Dashboard() {
                                                 <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{service.clientName}</p>
                                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{service.type} • {formatLocalDate(service.date)}</p>
                                             </div>
-                                            <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
-                                                R$ {service.price}
+                                            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                                R$ {(Number(service.price) || 0).toFixed(2)}
                                             </div>
                                         </div>
                                     ))

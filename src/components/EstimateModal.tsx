@@ -6,7 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { useSettings, useClients, useServiceTemplates } from '../hooks/useData';
 import { addEstimate, updateEstimate } from '../lib/supabaseOperations';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, parseMonetaryValue } from '../utils/dateUtils';
 import { generateUUID } from '../utils/uuid';
 
 import { Share } from '@capacitor/share';
@@ -79,7 +79,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
 
     if (!isOpen) return null;
 
-    const totalValue = items.reduce((acc, item) => acc + (item.price * (Number(item.quantity) || 1)), 0);
+    const totalValue = items.reduce((acc, item) => acc + (parseMonetaryValue(item.price) * (Number(item.quantity) || 1)), 0);
     const validUntil = new Date(date);
     validUntil.setDate(validUntil.getDate() + validityDays);
 
@@ -123,15 +123,16 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
             `*Cliente:* ${clientInfo.name}\n` +
             `*Data:* ${formatLocalDate(date)}\n` +
             `*Validade:* ${validityDays} dias\n` +
-            `*Valor Total:* R$ ${totalValue.toFixed(2)}\n\n` +
+            `*Valor Total:* R$ ${(Number(totalValue) || 0).toFixed(2)}\n\n` +
             `*ITENS DO ORÇAMENTO:*\n`;
 
         items.forEach(item => {
             const qty = Number(item.quantity) || 1;
+            const price = parseMonetaryValue(item.price);
             if (qty > 1) {
-                text += `- ${qty}x ${item.type} (R$ ${item.price.toFixed(2)}/un): R$ ${(item.price * qty).toFixed(2)}\n`;
+                text += `- ${qty}x ${item.type} (R$ ${price.toFixed(2)}/un): R$ ${(price * qty).toFixed(2)}\n`;
             } else {
-                text += `- ${qty}x ${item.type}: R$ ${(item.price * qty).toFixed(2)}\n`;
+                text += `- ${qty}x ${item.type}: R$ ${(price * qty).toFixed(2)}\n`;
             }
         });
 
@@ -659,8 +660,8 @@ function EstimatePreviewContent({ id, companyName, clientInfo, date, items, tota
                                 <p className="font-bold text-slate-900 text-base uppercase">{item.type}</p>
                                 {item.description && <p className="text-slate-500 text-xs mt-1 leading-relaxed">{item.description}</p>}
                             </div>
-                            <div className="w-32 text-right font-medium text-slate-500 text-sm">{(Number(item.quantity) || 1) > 1 ? `R$ ${item.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}</div>
-                            <div className="w-32 text-right font-black text-slate-900 text-base">R$ {(item.price * (Number(item.quantity) || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            <div className="w-32 text-right font-medium text-slate-500 text-sm">{(Number(item.quantity) || 1) > 1 ? `R$ ${parseMonetaryValue(item.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}</div>
+                            <div className="w-32 text-right font-black text-slate-900 text-base">R$ {(parseMonetaryValue(item.price) * (Number(item.quantity) || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         </div>
                     ))}
                 </div>

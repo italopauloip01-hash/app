@@ -10,7 +10,7 @@ import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
-import { parseLocalDate, formatLocalDate } from '../utils/dateUtils';
+import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
 
 interface ReceiptModalProps {
     isOpen: boolean;
@@ -33,13 +33,13 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
         let text = `*RECIBO DE SERVIÇO - ${companyName.toUpperCase()}*\n\n` +
             `*Cliente:* ${client.name}\n` +
             `*Data:* ${formatLocalDate(service.date)}\n` +
-            `*Valor:* R$ ${service.price.toFixed(2)}\n` +
+            `*Valor:* R$ ${getServicePrice(service).toFixed(2)}\n` +
             `*Status:* ${service.paymentStatus === 'Pago' ? 'PAGAMENTO OK (' + service.paymentMethod + ')' : 'PAGAMENTO PENDENTE'}\n\n` +
             `*DETALHES DO SERVIÇO:*\n`;
 
         if (service.items && service.items.length > 0) {
             service.items.forEach((item, index) => {
-                const price = Number(item.price) || 0;
+                const price = parseMonetaryValue(item.price);
                 const quantity = Number(item.quantity) || 1;
 
                 if (quantity > 1) {
@@ -49,7 +49,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                 }
             });
         } else {
-            const servicePrice = Number(service.price) || 0;
+            const servicePrice = getServicePrice(service);
             text += `1. 1x ${service.type}${service.description ? ' - ' + service.description : ''} - R$ ${servicePrice.toFixed(2)}\n`;
         }
 
@@ -251,7 +251,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                             <div className="space-y-0 text-sm">
                                 {service.items && service.items.length > 0 ? (
                                     service.items.map((item, idx) => {
-                                        const price = Number(item.price) || 0;
+                                        const price = parseMonetaryValue(item.price);
                                         const quantity = Number(item.quantity) || 1;
                                         return (
                                             <div key={idx} className="flex justify-between py-4 border-b border-slate-100 items-start">
@@ -273,7 +273,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                             {service.description && <span className="text-slate-500 ml-1">- {service.description}</span>}
                                         </div>
                                         <div className="w-32 text-right font-medium text-slate-500">-</div>
-                                        <div className="w-32 text-right font-bold text-slate-900">R$ {(Number(service.price) || 0).toFixed(2)}</div>
+                                        <div className="w-32 text-right font-bold text-slate-900">R$ {getServicePrice(service).toFixed(2)}</div>
                                     </div>
                                 )}
                             </div>
@@ -283,7 +283,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                 <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                                     {service.paymentStatus === 'Pago' ? 'VALOR TOTAL PAGO:' : 'VALOR TOTAL EM ABERTO:'}
                                 </span>
-                                <span className="text-[28px] font-black text-[#0f172a]">R$ {(Number(service.price) || 0).toFixed(2)}</span>
+                                <span className="text-[28px] font-black text-[#0f172a]">R$ {getServicePrice(service).toFixed(2)}</span>
                             </div>
                         </div>
 

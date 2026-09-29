@@ -7,6 +7,7 @@ import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
+import { getServicePrice } from '../utils/dateUtils';
 
 interface GlobalDebtStatementModalProps {
     isOpen: boolean;
@@ -21,8 +22,8 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
     // Aggregate debts per client
     const debtors = clients.map(client => {
-        const pendingServices = allServices.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente');
-        const debt = pendingServices.reduce((sum, s) => sum + s.price, 0);
+        const pendingServices = allServices.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente' && s.status !== 'Cancelado');
+        const debt = pendingServices.reduce((sum, s) => sum + getServicePrice(s), 0);
         return { client, debt, serviceCount: pendingServices.length };
     }).filter(d => d.debt > 0).sort((a, b) => b.debt - a.debt); // Sort by highest debt first
 
@@ -117,11 +118,11 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
         debtors.forEach((d, index) => {
             text += `${index + 1}. *${d.client.name}*\n`;
-            text += `   Dívida: R$ ${d.debt.toFixed(2)} (${d.serviceCount} serviços)\n`;
+            text += `   Dívida: R$ ${(Number(d.debt) || 0).toFixed(2)} (${d.serviceCount} serviços)\n`;
             text += `   Contato: ${d.client.phone}\n\n`;
         });
 
-        text += `*TOTAL GERAL A RECEBER: R$ ${totalGlobalDebt.toFixed(2)}*\n\n`;
+        text += `*TOTAL GERAL A RECEBER: R$ ${(Number(totalGlobalDebt) || 0).toFixed(2)}*\n\n`;
         text += `Segue em anexo o relatório detalhado em imagem.`;
 
         const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -156,7 +157,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                         Foi compilado um extrato geral <strong>({debtors.length} clientes com débito)</strong> em qualidade premium.
                     </p>
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full mb-4">
-                        <span>Total Global: R$ {totalGlobalDebt.toFixed(2)}</span>
+                        <span>Total Global: R$ {(Number(totalGlobalDebt) || 0).toFixed(2)}</span>
                     </div>
                 </div>
 
@@ -193,7 +194,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                         </div>
                         <div className="text-right">
                             <span className="font-bold text-red-600 uppercase tracking-wider text-[11px] block">TOTAL A RECEBER:</span>
-                            <span className="text-[32px] font-black text-[#dc2626] leading-none block">R$ {totalGlobalDebt.toFixed(2)}</span>
+                            <span className="text-[32px] font-black text-[#dc2626] leading-none block">R$ {(Number(totalGlobalDebt) || 0).toFixed(2)}</span>
                         </div>
                     </div>
 
@@ -223,7 +224,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                                         {d.serviceCount}x
                                     </div>
                                     <div className="w-32 text-right font-black text-slate-900">
-                                        R$ {d.debt.toFixed(2)}
+                                        R$ {(Number(d.debt) || 0).toFixed(2)}
                                     </div>
                                 </div>
                             ))}

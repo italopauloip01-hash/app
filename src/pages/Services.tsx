@@ -12,7 +12,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import * as XLSX from 'xlsx';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { formatLocalDate, getYearMonth, getMonthName, getYearFromYearMonth } from '../utils/dateUtils';
+import { formatLocalDate, getYearMonth, getMonthName, getYearFromYearMonth, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
 
 export function Services() {
     const [activeTab, setActiveTab] = useState<'history' | 'templates'>('history');
@@ -40,8 +40,11 @@ export function Services() {
         return getYearMonth(e.date) === selectedMonth && e.type === 'work';
     });
 
-    const monthlyRevenue = filteredServices.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
-    const monthlyHelperCost = filteredHelperEntries.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    // Serviços cancelados não entram no faturamento
+    const activeMonthlyServices = filteredServices.filter(s => s.status !== 'Cancelado');
+
+    const monthlyRevenue = activeMonthlyServices.reduce((acc, curr) => acc + getServicePrice(curr), 0);
+    const monthlyHelperCost = filteredHelperEntries.reduce((acc, curr) => acc + parseMonetaryValue(curr.amount), 0);
     const netProfit = monthlyRevenue - monthlyHelperCost;
 
     const changeMonth = (months: number) => {
@@ -77,7 +80,7 @@ export function Services() {
             'Data': formatLocalDate(service.date),
             'Cliente': service.clientName || '',
             'Serviço': service.type || '',
-            'Valor': service.price,
+            'Valor': getServicePrice(service),
             'Status': service.status || '',
             'Pagamento': service.paymentStatus || '',
             'Método': service.paymentMethod || '',
@@ -285,13 +288,23 @@ export function Services() {
 
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800/50 min-w-0">
                                             <div className="text-left sm:text-right flex flex-col sm:items-end gap-0.5 min-w-0 flex-shrink">
-                                                <p className="font-bold text-slate-800 dark:text-white tracking-tight text-[13px] sm:text-base truncate">R$ {(Number(service.price) || 0).toFixed(2)}</p>
+                                                <p className={`font-bold tracking-tight text-[13px] sm:text-base truncate ${service.status === 'Cancelado' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-white'}`}>
+                                                    R$ {getServicePrice(service).toFixed(2)}
+                                                </p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
                                                         ${service.paymentStatus === 'Pago' ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
                                                         {service.paymentStatus === 'Pago' ? 'Pago' : 'Pendente'}
                                                     </span>
-                                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-widest">{service.status}</p>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                                                        service.status === 'Cancelado' 
+                                                            ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400'
+                                                            : service.status === 'Agendado'
+                                                                ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400'
+                                                                : 'text-slate-400 dark:text-slate-500'
+                                                    }`}>
+                                                        {service.status}
+                                                    </span>
                                                 </div>
                                             </div>
 

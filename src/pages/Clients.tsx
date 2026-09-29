@@ -9,7 +9,7 @@ import { EstimateModal } from '../components/EstimateModal';
 import { useNavigate } from 'react-router-dom';
 import type { Client, Service } from '../types';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatSimpleDate } from '../utils/dateUtils';
+import { formatSimpleDate, getServicePrice } from '../utils/dateUtils';
 
 export function Clients() {
     const clients = useClients();
@@ -30,9 +30,9 @@ export function Clients() {
     const clientDebts = useMemo(() => {
         const map = new Map<string, number>();
         allServices?.forEach((s: Service) => {
-            if (s.paymentStatus === 'Pendente') {
+            if (s.paymentStatus === 'Pendente' && s.status !== 'Cancelado') {
                 const current = map.get(s.clientId) || 0;
-                map.set(s.clientId, current + s.price);
+                map.set(s.clientId, current + getServicePrice(s));
             }
         });
         return map;
@@ -81,17 +81,17 @@ export function Clients() {
     const handleSendCharge = (e: React.MouseEvent, client: Client, totalDebt: number) => {
         e.stopPropagation();
 
-        const pendingServices = allServices?.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente') || [];
+        const pendingServices = allServices?.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente' && s.status !== 'Cancelado') || [];
 
         let message = `*FrioTech Soluções - Lembrete de Pagamento* ❄️💰\n\n`;
         message += `Olá, *${client.name}*!\n`;
         message += `Passando para lembrar dos seguintes serviços pendentes:\n\n`;
 
         pendingServices.forEach(s => {
-            message += `• ${formatSimpleDate(s.date)} - ${s.type}: *R$ ${s.price.toFixed(2)}*\n`;
+            message += `• ${formatSimpleDate(s.date)} - ${s.type}: *R$ ${getServicePrice(s).toFixed(2)}*\n`;
         });
 
-        message += `\n*Total em Aberto: R$ ${totalDebt.toFixed(2)}*\n\n`;
+        message += `\n*Total em Aberto: R$ ${(Number(totalDebt) || 0).toFixed(2)}*\n\n`;
         message += `Ficamos no aguardo. Obrigado pelo contato!`;
 
         const encodedMessage = encodeURIComponent(message);
@@ -153,7 +153,7 @@ export function Clients() {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-red-50 text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Total de Débitos Pendentes (Geral)</p>
-                        <h3 className="text-2xl font-black truncate drop-shadow-md">R$ {totalGlobalDebt.toFixed(2)}</h3>
+                        <h3 className="text-2xl font-black truncate drop-shadow-md">R$ {(Number(totalGlobalDebt) || 0).toFixed(2)}</h3>
                     </div>
                     <button
                         onClick={() => setIsGlobalStatementOpen(true)}
@@ -223,7 +223,7 @@ export function Clients() {
                                     <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between bg-red-50 dark:bg-red-900/20 p-2 rounded-xl border border-red-100 dark:border-red-900/20 gap-2 sm:gap-0">
                                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 truncate">
                                             <AlertCircle size={14} className="flex-shrink-0" />
-                                            <span className="text-xs font-black uppercase tracking-tight truncate">DÉBITO: R$ {clientDebts.get(client.id!)?.toFixed(2)}</span>
+                                            <span className="text-xs font-black uppercase tracking-tight truncate">DÉBITO: R$ {(Number(clientDebts.get(client.id!)) || 0).toFixed(2)}</span>
                                         </div>
                                         <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                             <button

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { formatLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
 import type { Service } from '../types';
 
 export function ClientDetails() {
@@ -339,7 +339,7 @@ export function ClientDetails() {
                             <div>
                                 <p className="text-xs font-black text-red-500 uppercase tracking-widest leading-tight">Não Pago</p>
                                 <p className="text-xl font-bold text-red-700 dark:text-red-400">
-                                    R$ {services.filter(s => s.paymentStatus === 'Pendente').reduce((acc, curr) => acc + curr.price, 0).toFixed(2)}
+                                    R$ {services.filter(s => s.paymentStatus === 'Pendente' && s.status !== 'Cancelado').reduce((acc, curr) => acc + getServicePrice(curr), 0).toFixed(2)}
                                 </p>
                             </div>
                         </div>
@@ -457,7 +457,7 @@ export function ClientDetails() {
                                                                 {item.description && <span className="text-slate-400 italic font-medium ml-1">- {item.description}</span>}
                                                             </div>
                                                             <div className="font-black text-slate-900 dark:text-white">
-                                                                R$ {(item.price * item.quantity).toFixed(2)}
+                                                                R$ {(parseMonetaryValue(item.price) * (Number(item.quantity) || 1)).toFixed(2)}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -471,7 +471,7 @@ export function ClientDetails() {
                                                 <span>{formatLocalDate(service.date)}</span>
                                             </div>
                                             <div>
-                                                Valor: <span className="font-semibold text-slate-700 dark:text-slate-300">R$ {service.price.toFixed(2)}</span>
+                                                Valor: <span className="font-semibold text-slate-700 dark:text-slate-300">R$ {getServicePrice(service).toFixed(2)}</span>
                                             </div>
                                             {service.paymentMethod && (
                                                 <div className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">

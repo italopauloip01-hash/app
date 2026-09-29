@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { CompanySettings } from '../types';
-import { getYearMonth, parseLocalDate } from '../utils/dateUtils';
+import { getYearMonth, parseLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
 import { format } from 'date-fns';
 
 // ============================================
@@ -128,32 +128,36 @@ export function useDashboardStats() {
 
         const clientMap = new Map(allClients.map(c => [c.id!, c.name]));
 
-        const currentRevenue = allServices
-            .filter(s => getYearMonth(s.date) === currentYearMonth)
-            .reduce((acc, s) => acc + (Number(s.price) || 0), 0);
+        // Filtra serviços válidos (não cancelados) para o faturamento real do mês
+        const validServices = allServices.filter(s => s.status !== 'Cancelado');
 
-        const lastMonthRevenue = allServices
+        const currentRevenue = validServices
+            .filter(s => getYearMonth(s.date) === currentYearMonth)
+            .reduce((acc, s) => acc + getServicePrice(s), 0);
+
+        const lastMonthRevenue = validServices
             .filter(s => getYearMonth(s.date) === lastYearMonth)
-            .reduce((acc, s) => acc + (Number(s.price) || 0), 0);
+            .reduce((acc, s) => acc + getServicePrice(s), 0);
 
         const currentHelperCost = allHelperEntries
             .filter(e => e.type === 'work' && getYearMonth(e.date) === currentYearMonth)
-            .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+            .reduce((acc, e) => acc + parseMonetaryValue(e.amount), 0);
 
         const lastMonthHelperCost = allHelperEntries
             .filter(e => e.type === 'work' && getYearMonth(e.date) === lastYearMonth)
-            .reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+            .reduce((acc, e) => acc + parseMonetaryValue(e.amount), 0);
 
         const recentServices = allServices
             .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
             .slice(0, 5)
             .map(s => ({
                 ...s,
+                price: getServicePrice(s),
                 clientName: clientMap.get(s.clientId) || 'Desconhecido'
             }));
 
         const breakdown: Record<string, number> = {};
-        allServices.forEach(s => {
+        validServices.forEach(s => {
             const type = s.type || (s.items && s.items[0]?.type) || 'Outro';
             breakdown[type] = (breakdown[type] || 0) + 1;
         });
@@ -165,7 +169,7 @@ export function useDashboardStats() {
 
         return {
             clientsCount: allClients.length,
-            servicesCount: allServices.length,
+            servicesCount: validServices.length,
             currentRevenue,
             lastMonthRevenue,
             currentHelperCost,
