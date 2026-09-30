@@ -11,6 +11,9 @@ import { format } from 'date-fns';
 import { compressImage } from '../utils/imageUtils';
 import type { Service, ServiceItem } from '../types';
 
+// No formulário a quantidade pode ficar vazia enquanto o usuário digita
+type FormItem = Omit<ServiceItem, 'quantity'> & { quantity: number | '' };
+
 export function NewService() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -30,7 +33,7 @@ export function NewService() {
     const [status, setStatus] = useState<'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado'>('Concluído');
     const [paymentStatus, setPaymentStatus] = useState<'Pago' | 'Pendente'>('Pendente');
     const [paymentMethod, setPaymentMethod] = useState<'Dinheiro' | 'Cartão' | 'Pix' | 'Transferência'>('Pix');
-    const [items, setItems] = useState<any[]>(
+    const [items, setItems] = useState<FormItem[]>(
         state?.prefillItems || [
             { type: 'Limpeza', description: '', quantity: 1, price: 0 }
         ]
@@ -131,7 +134,7 @@ export function NewService() {
         setItems([...items, { type: 'Limpeza', description: '', quantity: 1, price: 0 }]);
     };
 
-    const updateItem = (index: number, field: string, value: any) => {
+    const updateItem = (index: number, field: keyof FormItem, value: string | number) => {
         const newItems = [...items];
 
         if (field === 'type') {
@@ -312,7 +315,7 @@ export function NewService() {
                                 <button
                                     key={s}
                                     type="button"
-                                    onClick={() => setStatus(s as any)}
+                                    onClick={() => setStatus(s as Service['status'])}
                                     className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all
                                 ${status === s ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
                             `}
@@ -465,7 +468,7 @@ export function NewService() {
                                     <button
                                         key={s.id}
                                         type="button"
-                                        onClick={() => setPaymentStatus(s.id as any)}
+                                        onClick={() => setPaymentStatus(s.id as Service['paymentStatus'])}
                                         className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-all
                                             ${paymentStatus === s.id
                                                 ? 'bg-white dark:bg-slate-700 shadow-sm ' + s.color
@@ -486,7 +489,7 @@ export function NewService() {
                                         <button
                                             key={m}
                                             type="button"
-                                            onClick={() => setPaymentMethod(m as any)}
+                                            onClick={() => setPaymentMethod(m as NonNullable<Service['paymentMethod']>)}
                                             className={`py-2 rounded-xl text-[10px] font-bold transition-all border
                                                 ${paymentMethod === m
                                                     ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200 dark:shadow-none'

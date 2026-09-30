@@ -1,12 +1,23 @@
 import { useState } from 'react';
-import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check, X, RotateCcw, Ban } from 'lucide-react';
+import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check, X, RotateCcw, Ban, type LucideIcon } from 'lucide-react';
 import { useDashboardStats, useReminders } from '../hooks/useData';
 import { useNavigate } from 'react-router-dom';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatLocalDate, formatSimpleDate, parseLocalDate } from '../utils/dateUtils';
 import { updateService } from '../lib/supabaseOperations';
 
-const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: any) => (
+interface StatCardProps {
+    title: string;
+    value: string | number;
+    trend?: string | null;
+    icon: LucideIcon;
+    color: string;
+    onClick?: () => void;
+}
+
+type ReminderItem = NonNullable<ReturnType<typeof useReminders>>[number];
+
+const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: StatCardProps) => (
     <div
         onClick={onClick}
         className={`glass-card p-6 relative overflow-hidden group transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]' : ''}`}
@@ -68,7 +79,7 @@ export function Dashboard() {
         ? `${(((stats.currentHelperCost - stats.lastMonthHelperCost) / stats.lastMonthHelperCost) * 100).toFixed(0)}%`
         : null;
 
-    const handleMarkAsRealized = async (e: React.MouseEvent, service: any) => {
+    const handleMarkAsRealized = async (e: React.MouseEvent, service: ReminderItem) => {
         e.stopPropagation();
 
         if (service.isReminder) {
@@ -86,7 +97,7 @@ export function Dashboard() {
             });
         } else {
             try {
-                await updateService(service.id, {
+                await updateService(service.id!, {
                     status: 'Concluído',
                     date: new Date()
                 });
@@ -96,11 +107,11 @@ export function Dashboard() {
         }
     };
 
-    const handleIgnoreReminder = async (e: React.MouseEvent, service: any) => {
+    const handleIgnoreReminder = async (e: React.MouseEvent, service: ReminderItem) => {
         e.stopPropagation();
         if (window.confirm(`Deseja marcar este serviço de ${service.clientName} como "Não Realizar"? Ele sairá dos alertas.`)) {
             try {
-                await updateService(service.id, {
+                await updateService(service.id!, {
                     reminderIgnored: true,
                     reminderIgnoredAt: new Date(),
                     ...(service.status === 'Agendado' ? { status: 'Cancelado' } : {})
@@ -111,10 +122,10 @@ export function Dashboard() {
         }
     };
 
-    const handleRestoreReminder = async (e: React.MouseEvent, service: any) => {
+    const handleRestoreReminder = async (e: React.MouseEvent, service: ReminderItem) => {
         e.stopPropagation();
         try {
-            await updateService(service.id, {
+            await updateService(service.id!, {
                 reminderIgnored: false,
                 reminderIgnoredAt: undefined,
                 ...(service.status === 'Cancelado' ? { status: 'Agendado' } : {})
@@ -318,7 +329,7 @@ export function Dashboard() {
                                 {stats.serviceTypeBreakdown.length === 0 ? (
                                     <p className="text-slate-400 dark:text-slate-600 text-xs italic">Nenhum dado disponível.</p>
                                 ) : (
-                                    stats.serviceTypeBreakdown.map((item: any) => {
+                                    stats.serviceTypeBreakdown.map((item) => {
                                         const total = stats.servicesCount || 1;
                                         const percentage = ((item.value / total) * 100).toFixed(0);
                                         return (
@@ -355,7 +366,7 @@ export function Dashboard() {
                                 {stats.recentServices.length === 0 ? (
                                     <p className="text-slate-400 dark:text-slate-600 text-xs italic">Nenhum serviço recente.</p>
                                 ) : (
-                                    stats.recentServices.map((service: any) => (
+                                    stats.recentServices.map((service) => (
                                         <div key={service.id} className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                                                 <Wrench size={14} />

@@ -33,13 +33,17 @@ export function Helpers() {
         const cleanupOrphans = async () => {
             try {
                 const helpers = await db.helpers.toArray();
+                // Sem ajudantes carregados (ex.: primeira sincronização ainda em andamento)
+                // não dá para saber o que é órfão — não apaga nada.
+                if (helpers.length === 0) return;
                 const helperIds = new Set(helpers.map(h => h.id));
                 const entries = await db.helperEntries.toArray();
                 const orphanIds = entries.filter(e => !helperIds.has(e.helperId)).map(e => e.id!);
 
                 if (orphanIds.length > 0) {
                     console.log(`Cleaning up ${orphanIds.length} orphaned entries`);
-                    await db.helperEntries.bulkDelete(orphanIds);
+                    // Passa pela fila de sync, senão voltariam na próxima sincronização
+                    await Promise.all(orphanIds.map(id => deleteHelperEntry(id)));
                 }
             } catch (err) {
                 console.error("Error cleaning orphans:", err);

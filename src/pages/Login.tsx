@@ -1,3 +1,4 @@
+import { toError } from '../lib/utils';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -80,7 +81,8 @@ export function Login() {
                 // Removed manual navigate('/') to prevent Race Condition
                 // The useEffect will handle the redirect once AuthContext updates
             }
-        } catch (err: any) {
+        } catch (caught) {
+            const err = toError(caught);
             setError(err.message || "Erro inesperado ao realizar autenticação.");
         } finally {
             setLoading(false);

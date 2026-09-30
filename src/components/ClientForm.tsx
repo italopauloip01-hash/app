@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { toError } from '../lib/utils';
 import { useState, useEffect } from 'react';
 import { X, Save, User, Phone, MapPin, Mail, LocateFixed, Loader2 } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
@@ -35,7 +37,7 @@ export function ClientForm({ onClose, clientToEdit }: ClientFormProps) {
         setIsLocating(true);
         try {
             // Check if we are running in Capacitor (app) or web
-            const isNative = typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform();
+            const isNative = Capacitor.isNativePlatform();
 
             let latitude, longitude;
 
@@ -84,7 +86,8 @@ export function ClientForm({ onClose, clientToEdit }: ClientFormProps) {
                 const fullAddress = `${street}${street ? number : ''}${neighborhoodStr}, ${cityName} - ${state}`;
                 setFormData(prev => ({ ...prev, address: fullAddress.trim() }));
             }
-        } catch (error: any) {
+        } catch (caught) {
+            const error = toError(caught);
             console.error("Error fetching location/address:", error);
             alert(error.message || "Erro ao buscar endereço. Verifique as permissões de localização ou tente digitar manualmente.");
         } finally {

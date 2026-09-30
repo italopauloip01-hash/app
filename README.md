@@ -1,73 +1,70 @@
-# React + TypeScript + Vite
+# AirTech Pro
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+App de gestão para técnicos de climatização: clientes, serviços, orçamentos, ajudantes,
+lembretes de manutenção, recibos/extratos e faturamento mensal.
 
-Currently, two official plugins are available:
+Roda como **PWA** (publicado na Vercel) e como **app Android** (Capacitor).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Stack
 
-## React Compiler
+- React 19 + TypeScript + Vite 7 + Tailwind 4
+- **Dexie (IndexedDB)** como banco local — o app funciona offline
+- **Supabase** (Auth + Postgres + Realtime) como nuvem
+- Capacitor 8 para Android (Filesystem, Share, Geolocation)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Comandos
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev       # servidor local em http://localhost:5173
+npm test          # testes (Vitest) — somas mensais e sincronização
+npm run lint
+npm run build     # gera dist/ (web + PWA)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Android
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+O APK empacota a pasta `dist/`. Toda correção só chega ao celular depois de:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
+npx cap sync android
 ```
+
+e gerar/instalar o APK novamente pelo Android Studio.
+
+## Arquitetura de dados
+
+```
+Tela ──lê──▶ hooks/useData.ts (useLiveQuery) ──▶ Dexie
+Tela ──grava─▶ lib/supabaseOperations.ts ──▶ Dexie + fila `outbox` ──▶ Supabase
+```
+
+- **Offline-first:** toda gravação vai primeiro para o Dexie e entra na fila `outbox`
+  (na mesma transação). A fila é enviada ao Supabase em segundo plano; se estiver sem
+  internet ou der erro, fica guardada e é reenviada depois.
+- **Sincronização (`syncDatabase`):** envia a fila, depois baixa tudo do Supabase
+  (paginado, 1000 por vez). Registros com alteração local pendente não são sobrescritos.
+  Registros que sumiram da nuvem (apagados em outro aparelho) são removidos localmente.
+- **Realtime:** alterações feitas em outro aparelho chegam por WebSocket.
+- **Normalização (`utils/normalize.ts`):** o Supabase devolve datas como texto e às vezes
+  números/JSON como texto. Tudo que chega é convertido (datas → `Date`, valores → `number`,
+  `items` → array) antes de ir para o Dexie. Isso é o que mantém as somas por mês corretas.
+- **Datas:** use sempre `parseLocalDate` / `getYearMonth` de `utils/dateUtils.ts`.
+  Nunca `new Date("2026-10-01")` — o JavaScript lê isso como UTC e, no Brasil, vira 30/09.
+- **Troca de conta:** se outra conta logar no mesmo aparelho, os dados locais da conta
+  anterior são apagados antes de sincronizar (`ensureLocalDataOwner`).
+
+## Backup
+
+- **Manual** (Configurações): gera um JSON (sem fotos, por tamanho) para compartilhar/baixar.
+- **Automático** (só no app Android): a cada 3h salva em `Documentos/AirTechPro`,
+  mantendo os 5 mais recentes.
+- **Restaurar:** substitui os dados locais pelos do arquivo, preservando as fotos já
+  existentes, e envia o resultado para a nuvem.
+
+## Segurança
+
+`supabase_security_rules.sql` ativa Row Level Security: cada usuário só acessa as próprias
+linhas (`user_id = auth.uid()`). A chave `anon` no código é pública por design; a proteção
+vem do RLS.

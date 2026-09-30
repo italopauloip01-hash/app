@@ -76,7 +76,7 @@ export function applyPrintColors(clonedDoc: Document) {
                     const rules = Array.from(sheet.cssRules);
                     megaStyleString += rules.map(rule => rule.cssText).join('\n') + '\n';
                 }
-            } catch (err) {
+            } catch {
                 // Ignore cross-origin stylesheet errors
             }
         }

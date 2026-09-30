@@ -4,7 +4,7 @@
  */
 export function formatWhatsAppNumber(phone: string): string {
     // Remove all non-digit characters
-    let cleaned = phone.replace(/\D/g, '');
+    const cleaned = phone.replace(/\D/g, '');
 
     // If it's already a full international number starting with 55
     if (cleaned.startsWith('55') && (cleaned.length === 12 || cleaned.length === 13)) {

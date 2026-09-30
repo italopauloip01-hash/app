@@ -5,6 +5,9 @@ import { addHelper, deleteHelper, saveSettings, syncDatabase } from '../lib/supa
 import { exportDatabase, importDatabase } from '../utils/backup';
 import { APP_VERSION } from '../version';
 import type { Helper } from '../types';
+import { Capacitor } from '@capacitor/core';
+
+const isNativeApp = Capacitor.isNativePlatform();
 
 export function Settings() {
     const settings = useSettings();
@@ -86,11 +89,7 @@ export function Settings() {
                 darkMode,
                 signature
             };
-            if (settings?.id) {
-                await saveSettings({ ...settings, ...dataToSave });
-            } else {
-                await saveSettings(dataToSave as any);
-            }
+            await saveSettings({ ...settings, ...dataToSave });
         } catch (error) {
             console.error('Failed to update auto backup:', error);
         }
@@ -111,11 +110,7 @@ export function Settings() {
                 darkMode: enabled,
                 signature
             };
-            if (settings?.id) {
-                await saveSettings({ ...settings, ...dataToSave });
-            } else {
-                await saveSettings(dataToSave as any);
-            }
+            await saveSettings({ ...settings, ...dataToSave });
         } catch (error) {
             console.error('Failed to update dark mode:', error);
         }
@@ -125,34 +120,19 @@ export function Settings() {
         e.preventDefault();
         setIsSaving(true);
         try {
-            if (settings?.id) {
-                await saveSettings({
-                    ...settings,
-                    name,
-                    phone,
-                    pixKey,
-                    address,
-                    cnpj,
-                    email,
-                    ownerName,
-                    autoBackupEnabled,
-                    darkMode,
-                    signature
-                });
-            } else {
-                await saveSettings({
-                    name,
-                    phone,
-                    pixKey,
-                    address,
-                    cnpj,
-                    email,
-                    ownerName,
-                    autoBackupEnabled,
-                    darkMode,
-                    signature
-                });
-            }
+            await saveSettings({
+                ...settings,
+                name,
+                phone,
+                pixKey,
+                address,
+                cnpj,
+                email,
+                ownerName,
+                autoBackupEnabled,
+                darkMode,
+                signature
+            });
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
         } catch (error) {
@@ -166,8 +146,16 @@ export function Settings() {
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            await syncDatabase();
-            alert("Sincronização com a nuvem concluída com sucesso!");
+            const result = await syncDatabase();
+            if (result.ok) {
+                alert("Sincronização com a nuvem concluída com sucesso!");
+            } else if (result.reason === 'offline') {
+                alert(`Sem internet. ${result.pending} alteração(ões) serão enviadas quando a conexão voltar.`);
+            } else if (result.reason === 'busy') {
+                alert("Já existe uma sincronização em andamento. Aguarde alguns segundos.");
+            } else {
+                alert(`A sincronização não foi concluída. ${result.pending} alteração(ões) ainda aguardam envio; o app tentará novamente.`);
+            }
         } catch (error) {
             console.error('Falha na sincronização:', error);
             alert("Erro ao sincronizar dados. Verifique sua conexão.");
@@ -183,7 +171,7 @@ export function Settings() {
             if (success) {
                 alert("Backup exportado com sucesso!");
             } else {
-                alert("Erro ao exportar backup.");
+                alert("O backup não foi salvo (erro ou compartilhamento cancelado).");
             }
         } finally {
             setIsExporting(false);
@@ -200,6 +188,7 @@ export function Settings() {
                 alert("Dados importados com sucesso!");
                 window.location.reload();
             } catch (error) {
+                console.error('Falha ao importar backup:', error);
                 alert("Erro ao importar dados. Verifique o arquivo.");
             }
         }
@@ -525,8 +514,9 @@ export function Settings() {
                                         </div>
                                     </label>
 
-                                    {/* Auto Backup Toggle */}
-                                    <label className="flex items-center gap-3 cursor-pointer group">
+                                    {/* Auto Backup Toggle (só no app: o navegador não grava arquivo sozinho) */}
+                                    {isNativeApp && (
+                                    <label className="flex items-center gap-3 cursor-pointer group" title="Salva em Documentos/AirTechPro, mantendo os 5 mais recentes">
                                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                             Backup Auto (3h)
                                         </span>
@@ -540,6 +530,7 @@ export function Settings() {
                                             <div className="w-10 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                                         </div>
                                     </label>
+                                    )}
                                 </div>
                             </div>
 

@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { toError } from '../lib/utils';
 import { X, FileText, Share2, Image as ImageIcon } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
@@ -74,7 +76,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
             const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
 
-            if (typeof window !== 'undefined' && (window as any).Capacitor && (window as any).Capacitor.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
                 const result = await Filesystem.writeFile({
@@ -92,7 +94,8 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                         url: result.uri,
                         dialogTitle: 'Compartilhar Relatório'
                     });
-                } catch (shareError: any) {
+                } catch (caught) {
+                    const shareError = toError(caught);
                     if (shareError.message && shareError.message.includes('canceled')) {
                         console.log("Compartilhamento cancelado pelo usuário.");
                         return;
@@ -105,7 +108,8 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                 link.href = base64Uri;
                 link.click();
             }
-        } catch (error: any) {
+        } catch (caught) {
+            const error = toError(caught);
             console.error("Erro detalhado ao gerar relatório Imagem:", error);
             if (error.message && error.message.includes('canceled')) return;
             alert(`Falha no relatório: ${error.message || "Tente novamente."}`);

@@ -2,7 +2,7 @@
  * Converte qualquer formato de data (ISO, DD/MM/YYYY, Timestamp, Date, UTC) 
  * para um Date local exato sem bugs de fuso horário.
  */
-export const parseLocalDate = (dateInput: any): Date => {
+export const parseLocalDate = (dateInput: unknown): Date => {
     if (!dateInput) return new Date();
     if (dateInput instanceof Date) {
         if (isNaN(dateInput.getTime())) return new Date();
@@ -59,7 +59,7 @@ export const parseLocalDate = (dateInput: any): Date => {
 /**
  * Formats a Date object as a local dd/mm/yyyy string safely.
  */
-export const formatLocalDate = (date: any): string => {
+export const formatLocalDate = (date: unknown): string => {
     if (!date) return '';
     const d = parseLocalDate(date);
     return d.toLocaleDateString('pt-BR');
@@ -68,7 +68,7 @@ export const formatLocalDate = (date: any): string => {
 /**
  * Formats date as dd/mm safely.
  */
-export const formatSimpleDate = (date: any): string => {
+export const formatSimpleDate = (date: unknown): string => {
     if (!date) return '';
     const d = parseLocalDate(date);
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -77,7 +77,7 @@ export const formatSimpleDate = (date: any): string => {
 /**
  * Returns YYYY-MM safely from any date representation, sem pular ou errar mês por timezone.
  */
-export const getYearMonth = (date: any): string => {
+export const getYearMonth = (date: unknown): string => {
     if (!date) return '';
 
     if (date instanceof Date) {
@@ -148,7 +148,7 @@ export const getYearFromYearMonth = (yearMonth: string): string => {
  * Converte qualquer representação numérica ou em string (ex: "150,00", "1.250,50", "R$ 300,00", null, NaN)
  * em um número Float válido com 0 como fallback absoluto.
  */
-export const parseMonetaryValue = (val: any): number => {
+export const parseMonetaryValue = (val: unknown): number => {
     if (val === null || val === undefined || val === '') return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
     if (typeof val === 'string') {
@@ -167,12 +167,18 @@ export const parseMonetaryValue = (val: any): number => {
 /**
  * Obtém com segurança o valor real de um serviço, considerando soma dos itens ou preço direto.
  */
-export const getServicePrice = (service: any): number => {
+interface PricedService {
+    items?: unknown;
+    price?: unknown;
+}
+
+export const getServicePrice = (service: PricedService | null | undefined): number => {
     if (!service) return 0;
-    
+
     // Se o serviço tiver itens com valor, calcula a soma dos itens
-    if (service.items && Array.isArray(service.items) && service.items.length > 0) {
-        const itemsTotal = service.items.reduce((total: number, item: any) => {
+    if (Array.isArray(service.items) && service.items.length > 0) {
+        const items = service.items as { price?: unknown; quantity?: unknown }[];
+        const itemsTotal = items.reduce((total, item) => {
             const itemPrice = parseMonetaryValue(item?.price);
             const qty = Number(item?.quantity) || 1;
             return total + (itemPrice * qty);
@@ -187,7 +193,7 @@ export const getServicePrice = (service: any): number => {
 /**
  * Formata um valor numérico em moeda brasileira de forma 100% blindada contra crash.
  */
-export const formatCurrency = (val: any): string => {
+export const formatCurrency = (val: unknown): string => {
     const num = parseMonetaryValue(val);
     return `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };

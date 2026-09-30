@@ -10,15 +10,16 @@ import {
     X,
     Bell,
     LogOut,
-    FileText
+    FileText,
+    type LucideIcon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { syncDatabase, onSyncStateChange, subscribeToRealtime, unsubscribeFromRealtime } from '../lib/supabaseOperations';
+import { syncDatabase, onSyncStateChange, subscribeToRealtime } from '../lib/supabaseOperations';
 import { OfflineIndicator } from './OfflineIndicator';
 import { APP_VERSION } from '../version';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
-const NavItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon: any, label: string, active: boolean, onClick?: () => void }) => (
+const NavItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon: LucideIcon, label: string, active: boolean, onClick?: () => void }) => (
     <Link
         to={to}
         onClick={onClick}
@@ -49,19 +50,14 @@ export function Layout() {
         navigate('/login');
     };
 
+    // A sincronização inicial e o realtime são iniciados no AuthContext.
+    // Aqui só reagimos a voltar a ficar online.
     useEffect(() => {
-        if (user) {
-            syncDatabase();
-            subscribeToRealtime(user.id);
-        } else {
-            unsubscribeFromRealtime();
-        }
-
         const handleOnline = () => {
             setIsOnline(true);
             if (user) {
-                syncDatabase();
                 subscribeToRealtime(user.id);
+                syncDatabase();
             }
         };
         const handleOffline = () => setIsOnline(false);
@@ -77,7 +73,6 @@ export function Layout() {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
             unsubscribeSync();
-            unsubscribeFromRealtime();
         }
     }, [user]);
 

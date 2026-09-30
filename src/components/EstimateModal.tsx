@@ -1,6 +1,8 @@
+import { Capacitor } from '@capacitor/core';
+import { toError } from '../lib/utils';
 import { X, Share2, Plus, FileText, Search, Trash2, Calendar, MapPin, Phone, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import type { Client } from '../types';
+import type { Client, Estimate } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSettings, useClients, useServiceTemplates } from '../hooks/useData';
@@ -25,7 +27,7 @@ interface EstimateModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialClient?: Client;
-    initialEstimate?: any; // from db.estimates
+    initialEstimate?: Estimate;
 }
 
 export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate }: EstimateModalProps) {
@@ -93,7 +95,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
         }
     };
 
-    const updateItem = (index: number, field: keyof EstimateItem, value: any) => {
+    const updateItem = (index: number, field: keyof EstimateItem, value: string | number) => {
         const newItems = [...items];
 
         if (field === 'type') {
@@ -213,7 +215,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
             document.body.removeChild(clone);
             const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
 
-            if (typeof window !== 'undefined' && (window as any).Capacitor && (window as any).Capacitor.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
                 const result = await Filesystem.writeFile({
                     path: fileName,
@@ -229,7 +231,8 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                         url: result.uri,
                         dialogTitle: 'Compartilhar Orçamento'
                     });
-                } catch (shareError: any) {
+                } catch (caught) {
+                    const shareError = toError(caught);
                     if (shareError.message && shareError.message.includes('canceled')) return;
                     throw shareError;
                 }
@@ -239,7 +242,8 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                 link.href = base64Uri;
                 link.click();
             }
-        } catch (error: any) {
+        } catch (caught) {
+            const error = toError(caught);
             console.error("Erro ao gerar Foto:", error);
             if (error.message && error.message.includes('canceled')) return;
             alert(`Erro ao gerar Foto: ${error.message || "Tente novamente."}`);
@@ -601,7 +605,18 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
 }
 
 // Sub-component for the actual document content to avoid duplication
-function EstimatePreviewContent({ id, companyName, clientInfo, date, items, totalValue, validityDays, validUntil }: any) {
+interface EstimatePreviewProps {
+    id: string;
+    companyName: string;
+    clientInfo: { id: string; name: string; phone: string; address: string };
+    date: string;
+    items: EstimateItem[];
+    totalValue: number;
+    validityDays: number;
+    validUntil: Date;
+}
+
+function EstimatePreviewContent({ id, companyName, clientInfo, date, items, totalValue, validityDays, validUntil }: EstimatePreviewProps) {
     return (
         <div id={id} className="bg-white p-12 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]">
             {/* Header */}

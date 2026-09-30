@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { toError } from '../lib/utils';
 import { X, Share2, Image, FileText } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
@@ -115,7 +117,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
 
             const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
 
-            if (typeof window !== 'undefined' && (window as any).Capacitor && (window as any).Capacitor.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 // Ensure pure base64 without data headers to avoid corrupt files
                 const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
 
@@ -135,7 +137,8 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                         url: result.uri,
                         dialogTitle: 'Compartilhar Recibo'
                     });
-                } catch (shareError: any) {
+                } catch (caught) {
+                    const shareError = toError(caught);
                     if (shareError.message && shareError.message.includes('canceled')) {
                         console.log("Compartilhamento cancelado pelo usuário.");
                         return; // Não exibir alerta vermelho na tela se o usuário apenas fechou a gaveta de share.
@@ -149,7 +152,8 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                 link.href = base64Uri;
                 link.click();
             }
-        } catch (error: any) {
+        } catch (caught) {
+            const error = toError(caught);
             console.error("Erro detalhado ao gerar/compartilhar Imagem:", error);
 
             // Ignorar display de erro se foi apenas um cancelamento de share acidental não capturado no try interno
@@ -234,7 +238,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                             <div className="text-right">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">DATA DO SERVIÇO</p>
                                 <p className="font-bold text-slate-800 text-base">
-                                    {format(parseLocalDate(service.date as any), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                                    {format(parseLocalDate(service.date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                                 </p>
                             </div>
                         </div>
@@ -298,7 +302,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">PRÓXIMA MANUTENÇÃO</p>
                                     <p className="font-bold text-slate-800 text-base">
                                         {service.nextServiceDate
-                                            ? format(parseLocalDate(service.nextServiceDate as any), "dd 'de' MMMM, yyyy", { locale: ptBR })
+                                            ? format(parseLocalDate(service.nextServiceDate), "dd 'de' MMMM, yyyy", { locale: ptBR })
                                             : "Não agendada"}
                                     </p>
                                 </div>

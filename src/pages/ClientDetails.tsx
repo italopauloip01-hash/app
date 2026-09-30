@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { toError } from '../lib/utils';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClient, useServices } from '../hooks/useData';
@@ -156,7 +158,7 @@ export function ClientDetails() {
         setIsSharingPhotos(true);
         try {
             // Check if we are running under Capacitor / Native
-            if (typeof window !== 'undefined' && (window as any).Capacitor && (window as any).Capacitor.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 const fileUris = [];
                 for (let i = 0; i < photosToShare.length; i++) {
                     const photoBase64 = photosToShare[i];
@@ -212,7 +214,8 @@ export function ClientDetails() {
                     alert('Compartilhamento não suportado neste navegador.');
                 }
             }
-        } catch (error: any) {
+        } catch (caught) {
+            const error = toError(caught);
             console.error("Erro ao compartilhar foto:", error);
             if (error.name !== "AbortError" && !error.message?.includes('canceled')) {
                 alert("Não foi possível realizar o compartilhamento. Verifique se as imagens não são muito grandes.");
@@ -631,7 +634,7 @@ export function ClientDetails() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {services.reduce((acc: any[], service) => {
+                            {services.reduce((acc: { url: string; serviceType: string; date: Date; label: string; color: string; id: string }[], service) => {
                                 const before = (service.photosBefore || []).map((photo, idx) => ({
                                     url: photo,
                                     serviceType: service.type,
