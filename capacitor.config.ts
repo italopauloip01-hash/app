@@ -9,11 +9,10 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     // Necessário para o Supabase e chamadas de rede funcionarem
     allowNavigation: ['*.supabase.co'],
-    cleartext: true,
+    // Sem cleartext/allowMixedContent: todo acesso externo do app é HTTPS,
+    // então tráfego sem criptografia fica bloqueado.
   },
   android: {
-    // Permite conteúdo misto (HTTP + HTTPS) necessário para alguns recursos
-    allowMixedContent: true,
     // Captura cliques de volta do Android nativamente
     captureInput: true,
     // Desabilita overscroll (efeito "borracha" que parece não-nativo)

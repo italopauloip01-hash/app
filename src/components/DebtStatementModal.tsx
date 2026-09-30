@@ -3,12 +3,11 @@ import { toError } from '../lib/utils';
 import { X, FileText, Share2, Image } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
-import { useSettings } from '../hooks/useData';
+import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { generatePixPayload } from '../utils/PixUtils';
 
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
 import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
 
@@ -21,7 +20,7 @@ interface DebtStatementModalProps {
 
 export function DebtStatementModal({ isOpen, onClose, client, pendingServices }: DebtStatementModalProps) {
     const settings = useSettings();
-    const companyName = settings?.name || 'FrioTech Soluções';
+    const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
 
     // Sort pending services by date ascending
@@ -66,6 +65,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(clone, {
                 scale: 2,
                 useCORS: true,

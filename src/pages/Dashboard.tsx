@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check, X, RotateCcw, Ban, type LucideIcon } from 'lucide-react';
-import { useDashboardStats, useReminders } from '../hooks/useData';
+import { useDashboardStats, useReminders, useCompanyName } from '../hooks/useData';
 import { useNavigate } from 'react-router-dom';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatLocalDate, formatSimpleDate, parseLocalDate } from '../utils/dateUtils';
@@ -45,6 +45,7 @@ const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: StatCardP
 export function Dashboard() {
     const navigate = useNavigate();
     const stats = useDashboardStats();
+    const companyName = useCompanyName();
     const reminders = useReminders(false) || [];
     const ignoredReminders = useReminders(true) || [];
     const [maintenanceWindow, setMaintenanceWindow] = useState(30);
@@ -416,7 +417,7 @@ export function Dashboard() {
                                                 Realizado
                                             </button>
                                             <a
-                                                href={`https://wa.me/${formatWhatsAppNumber(reminder.clientPhone)}?text=Olá ${reminder.clientName}, aqui é da FrioTech. Sua manutenção de ar condicionado está vencendo. Vamos agendar?`}
+                                                href={`https://wa.me/${formatWhatsAppNumber(reminder.clientPhone)}?text=${encodeURIComponent(`Olá ${reminder.clientName}, aqui é da ${companyName}. Sua manutenção de ar condicionado está vencendo. Vamos agendar?`)}`}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="px-3 py-2 bg-green-500 text-white rounded-lg text-[10px] font-black shadow-lg shadow-green-500/20 hover:bg-green-600 transition-all active:scale-95 text-center flex items-center justify-center gap-1 uppercase"

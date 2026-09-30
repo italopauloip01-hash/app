@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import type { Client, Estimate } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useSettings, useClients, useServiceTemplates } from '../hooks/useData';
+import { useSettings, useClients, useServiceTemplates, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { addEstimate, updateEstimate } from '../lib/supabaseOperations';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatLocalDate, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
@@ -13,7 +13,6 @@ import { generateUUID } from '../utils/uuid';
 
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
 
 interface EstimateItem {
@@ -34,7 +33,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
     const settings = useSettings();
     const allClients = useClients() || [];
     const templates = useServiceTemplates() || [];
-    const companyName = settings?.name || 'FrioTech Soluções';
+    const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
 
     // Form State
     const [clientInfo, setClientInfo] = useState({
@@ -200,6 +199,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
             document.body.appendChild(clone);
             await new Promise(resolve => setTimeout(resolve, 300));
 
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(clone, {
                 scale: 2,
                 useCORS: true,

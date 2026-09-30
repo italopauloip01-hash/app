@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useSettings } from '../hooks/useData';
+import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { useAuth } from '../contexts/AuthContext';
 import {
     LayoutDashboard,
@@ -76,7 +76,7 @@ export function Layout() {
         }
     }, [user]);
 
-    const companyName = settings?.name || 'FrioTech Soluções';
+    const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
 
     return (
         <div className="flex min-h-screen relative overflow-x-hidden w-full">

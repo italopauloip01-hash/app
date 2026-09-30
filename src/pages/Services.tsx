@@ -1,22 +1,24 @@
 import { useState } from 'react';
 import { Wrench, BookTemplate, Search, ChevronLeft, ChevronRight, DollarSign, User, Calendar, Pencil, Trash2, Users, TrendingUp, Download } from 'lucide-react';
 import { ServiceTemplatesManager } from '../components/ServiceTemplatesManager';
+import { PaymentMethodPicker, type PaymentMethod } from '../components/PaymentMethodPicker';
 import { useDetailedServices } from '../hooks/useData';
 import { db } from '../db';
 import { updateService, deleteService } from '../lib/supabaseOperations';
 import { useNavigate } from 'react-router-dom';
-import type { Service } from '../types';
 import { format } from 'date-fns';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import * as XLSX from 'xlsx';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatLocalDate, getYearMonth, getMonthName, getYearFromYearMonth, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
+
+type DetailedService = NonNullable<ReturnType<typeof useDetailedServices>>[number];
 
 export function Services() {
     const [activeTab, setActiveTab] = useState<'history' | 'templates'>('history');
     const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
+    const [payingService, setPayingService] = useState<DetailedService | null>(null);
     const navigate = useNavigate();
     const services = useDetailedServices() || [];
     const helperEntries = useLiveQuery(() => db.helperEntries.toArray()) || [];
@@ -53,16 +55,17 @@ export function Services() {
         setSelectedMonth(format(d, 'yyyy-MM'));
     };
 
-    const handleTogglePayment = async (e: React.MouseEvent, service: Service) => {
+    const handleTogglePayment = (e: React.MouseEvent, service: DetailedService) => {
         e.stopPropagation();
-        const newStatus = service.paymentStatus === 'Pago' ? 'Pendente' : 'Pago';
-        const method = newStatus === 'Pago' ? 'Pix' : undefined;
+        setPayingService(service);
+    };
 
+    const confirmPayment = async (method: PaymentMethod) => {
+        if (!payingService) return;
+        const id = payingService.id!;
+        setPayingService(null);
         try {
-            await updateService(service.id!, {
-                paymentStatus: newStatus,
-                paymentMethod: method
-            });
+            await updateService(id, { paymentStatus: 'Pago', paymentMethod: method });
         } catch (error) {
             console.error("Error updating payment status:", error);
         }
@@ -74,6 +77,8 @@ export function Services() {
             return;
         }
 
+        // Biblioteca do Excel é grande: só é baixada quando o usuário exporta
+        const XLSX = await import('xlsx');
         const headers = ['Data', 'Cliente', 'Serviço', 'Valor', 'Status', 'Pagamento', 'Método', 'Observações'];
 
         const excelData = filteredServices.map(service => ({
@@ -345,6 +350,14 @@ export function Services() {
                 </div>
             ) : (
                 <ServiceTemplatesManager />
+            )}
+
+            {payingService && (
+                <PaymentMethodPicker
+                    subtitle={`${payingService.clientName} · R$ ${getServicePrice(payingService).toFixed(2)}`}
+                    onSelect={confirmPayment}
+                    onClose={() => setPayingService(null)}
+                />
             )}
         </div>
     );

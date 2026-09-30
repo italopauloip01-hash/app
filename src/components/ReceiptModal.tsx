@@ -4,13 +4,12 @@ import { X, Share2, Image, FileText } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useSettings } from '../hooks/useData';
+import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { generatePixPayload } from '../utils/PixUtils';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
 import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
 
@@ -23,7 +22,7 @@ interface ReceiptModalProps {
 
 export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalProps) {
     const settings = useSettings();
-    const companyName = settings?.name || 'FrioTech Soluções';
+    const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
 
     const pixData = pixKey ? generatePixPayload(pixKey, Number(service.price) || 0, companyName) : null;
@@ -100,6 +99,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Capturar
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(clone, {
                 scale: 2,
                 useCORS: true,
@@ -307,7 +307,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                     </p>
                                 </div>
                                 <div className="text-[9px] text-slate-400 italic">
-                                    * Recibo gerado digitalmente via FrioTech Soluções.
+                                    * Recibo gerado digitalmente via {companyName}.
                                 </div>
                             </div>
 

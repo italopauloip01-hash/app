@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2 } from 'lucide-react';
-import { useClients, useServices } from '../hooks/useData';
+import { useClients, useServices, useCompanyName } from '../hooks/useData';
 import { deleteClient, deleteService } from '../lib/supabaseOperations';
 import { ClientForm } from '../components/ClientForm';
 import { DebtStatementModal } from '../components/DebtStatementModal';
@@ -14,6 +14,7 @@ import { formatSimpleDate, getServicePrice } from '../utils/dateUtils';
 export function Clients() {
     const clients = useClients();
     const allServices = useServices();
+    const companyName = useCompanyName();
     const navigate = useNavigate();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -83,7 +84,7 @@ export function Clients() {
 
         const pendingServices = allServices?.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente' && s.status !== 'Cancelado') || [];
 
-        let message = `*FrioTech Soluções - Lembrete de Pagamento* ❄️💰\n\n`;
+        let message = `*${companyName} - Lembrete de Pagamento* ❄️💰\n\n`;
         message += `Olá, *${client.name}*!\n`;
         message += `Passando para lembrar dos seguintes serviços pendentes:\n\n`;
 

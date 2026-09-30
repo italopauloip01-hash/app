@@ -3,11 +3,10 @@ import { toError } from '../lib/utils';
 import { X, FileText, Share2, Image as ImageIcon } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
-import { useSettings } from '../hooks/useData';
+import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
 import { getServicePrice } from '../utils/dateUtils';
 
@@ -20,7 +19,7 @@ interface GlobalDebtStatementModalProps {
 
 export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices }: GlobalDebtStatementModalProps) {
     const settings = useSettings();
-    const companyName = settings?.name || 'FrioTech Soluções';
+    const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
 
     // Aggregate debts per client
     const debtors = clients.map(client => {
@@ -60,6 +59,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
             await new Promise(resolve => setTimeout(resolve, 300));
 
+            const { default: html2canvas } = await import('html2canvas');
             const canvas = await html2canvas(clone, {
                 scale: 2,
                 useCORS: true,

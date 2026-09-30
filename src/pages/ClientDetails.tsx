@@ -29,6 +29,7 @@ import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
 import type { Service } from '../types';
+import { PaymentMethodPicker, type PaymentMethod } from '../components/PaymentMethodPicker';
 
 export function ClientDetails() {
     const { id } = useParams<{ id: string }>();
@@ -44,6 +45,7 @@ export function ClientDetails() {
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
     const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
     const [isStatementModalOpen, setIsStatementModalOpen] = useState(false);
+    const [payingService, setPayingService] = useState<Service | null>(null);
 
     // Multi-select state
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -55,18 +57,18 @@ export function ClientDetails() {
         setIsReceiptOpen(true);
     };
 
-    const handleTogglePayment = async (service: Service) => {
-        const newStatus = service.paymentStatus === 'Pago' ? 'Pendente' : 'Pago';
-        const method = newStatus === 'Pago' ? 'Pix' : undefined; // Default to Pix when marking as paid
-
+    const setPaymentStatus = async (service: Service, status: Service['paymentStatus'], method?: PaymentMethod) => {
         try {
-            await updateService(service.id!, {
-                paymentStatus: newStatus,
-                paymentMethod: method
-            });
+            await updateService(service.id!, { paymentStatus: status, paymentMethod: method });
         } catch (error) {
             console.error("Error updating payment status:", error);
         }
+    };
+
+    // Marcar como pago pergunta a forma de pagamento; desmarcar volta direto para pendente
+    const handleTogglePayment = (service: Service) => {
+        if (service.paymentStatus === 'Pago') setPaymentStatus(service, 'Pendente');
+        else setPayingService(service);
     };
 
     const handleDeleteService = async (id: string) => {
@@ -759,6 +761,18 @@ export function ClientDetails() {
                     onClose={() => setIsStatementModalOpen(false)}
                     client={client}
                     pendingServices={services?.filter(s => s.paymentStatus === 'Pendente') || []}
+                />
+            )}
+
+            {payingService && (
+                <PaymentMethodPicker
+                    subtitle={`${payingService.type} · R$ ${getServicePrice(payingService).toFixed(2)}`}
+                    onSelect={(method) => {
+                        const target = payingService;
+                        setPayingService(null);
+                        setPaymentStatus(target, 'Pago', method);
+                    }}
+                    onClose={() => setPayingService(null)}
                 />
             )}
         </div>

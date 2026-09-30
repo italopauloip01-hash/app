@@ -200,6 +200,14 @@ export function useDetailedServices() {
     });
 }
 
+export const DEFAULT_COMPANY_NAME = 'FrioTech Soluções';
+
+/** Nome da empresa configurado em Configurações (usado em recibos, mensagens etc.). */
+export function useCompanyName(): string {
+    const settings = useSettings();
+    return settings?.name?.trim() || DEFAULT_COMPANY_NAME;
+}
+
 export function useSettings() {
     return useLiveQuery(async () => {
         const settings = await db.settings.toArray();
@@ -208,7 +216,7 @@ export function useSettings() {
         } else {
             // Default settings
             return {
-                name: 'FrioTech Soluções',
+                name: DEFAULT_COMPANY_NAME,
                 phone: '',
                 pixKey: '',
                 address: '',
