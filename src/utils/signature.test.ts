@@ -52,11 +52,13 @@ describe('extractInk (foto da assinatura)', () => {
 
     it('mantém a parte da assinatura que está em sombra forte', () => {
         const img = fakePhoto();
-        // Sombra pesada sobre o começo da assinatura: papel cai para ~100
+        // Sombra pesada sobre o começo da assinatura (papel cai ~40%), com borda em degradê
+        // como numa foto real (sombra da mão/celular não tem corte seco)
         for (let y = 0; y < img.height; y++) {
-            for (let x = 150; x < 260; x++) {
+            for (let x = 25; x < 330; x++) {
+                const fade = x < 230 ? 1 : 1 - (x - 230) / 100; // degradê de 100px
                 const i = (y * img.width + x) * 4;
-                for (let k = 0; k < 3; k++) img.data[i + k] = Math.round(img.data[i + k] * 0.6);
+                for (let k = 0; k < 3; k++) img.data[i + k] = Math.round(img.data[i + k] * (1 - 0.4 * fade));
             }
         }
         const box = extractInk(img)!;
