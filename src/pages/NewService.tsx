@@ -30,6 +30,8 @@ export function NewService() {
     const [nextDate, setNextDate] = useState('');
     const [photosBefore, setPhotosBefore] = useState<string[]>([]);
     const [photosAfter, setPhotosAfter] = useState<string[]>([]);
+    // Fotos gerais (catálogo). Não são editadas aqui, mas precisam ser preservadas ao salvar.
+    const [generalPhotos, setGeneralPhotos] = useState<string[]>([]);
     const [status, setStatus] = useState<'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado'>('Concluído');
     const [paymentStatus, setPaymentStatus] = useState<'Pago' | 'Pendente'>('Pendente');
     const [paymentMethod, setPaymentMethod] = useState<'Dinheiro' | 'Cartão' | 'Pix' | 'Transferência'>('Pix');
@@ -55,6 +57,7 @@ export function NewService() {
                     }
                     setPhotosBefore(service.photosBefore || []);
                     setPhotosAfter(service.photosAfter || []);
+                    setGeneralPhotos(service.photos || []);
                     setStatus(service.status);
                     setPaymentStatus(service.paymentStatus);
                     if (service.paymentMethod) {
@@ -229,7 +232,7 @@ export function NewService() {
                     price: Number(item.price) || 0
                 })),
                 price: Number(totalPrice) || 0,
-                photos: [],
+                photos: generalPhotos,
                 photosBefore: photosBefore || [],
                 photosAfter: photosAfter || [],
                 status: status || 'Concluído',

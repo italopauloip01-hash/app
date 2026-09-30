@@ -21,6 +21,7 @@ type AnyRecord = Record<string, unknown>;
 const LOCAL_USER_KEY = 'airtech:lastUserId';
 const PUSH_CHUNK_SIZE = 25; // registros com fotos em base64 podem ser grandes
 const PULL_PAGE_SIZE = 1000; // limite padrão do PostgREST por requisição
+const SERVICES_PAGE_SIZE = 20;
 
 function dexieTable(name: LocalTableName): Table<AnyRecord, string> {
     return db.table(name) as Table<AnyRecord, string>;
@@ -62,6 +63,32 @@ function toRemoteRow(record: AnyRecord, userId: string): AnyRecord {
 
 function fromRemoteRow(row: AnyRecord): AnyRecord {
     return normalizeRecord(toCamel(row));
+}
+
+// ============================================
+// Proteção das fotos
+// --------------------------------------------
+// Fotos ficam em base64 dentro do serviço. Já houve dois caminhos que apagavam fotos:
+// avisos do Realtime (que omitem campos grandes em registros > 1 MB) gravados por cima
+// do registro local, e envios em lote em que linhas sem o campo viravam NULL na nuvem.
+// Regra: se a nuvem não tem as fotos (null/ausente) e o aparelho tem, o aparelho vence
+// e as fotos são reenviadas. Lista vazia [] na nuvem é remoção intencional e é aceita.
+// ============================================
+const PHOTO_FIELDS = ['photos', 'photosBefore', 'photosAfter'] as const;
+
+/** Mantém no registro vindo da nuvem as fotos que só existem no aparelho. Retorna true se manteve alguma. */
+export function keepLocalPhotos(incoming: AnyRecord, current: AnyRecord | undefined): boolean {
+    if (!current) return false;
+    let kept = false;
+    for (const field of PHOTO_FIELDS) {
+        const remoteValue = incoming[field];
+        const localValue = current[field];
+        if ((remoteValue === null || remoteValue === undefined) && Array.isArray(localValue) && localValue.length > 0) {
+            incoming[field] = localValue;
+            kept = true;
+        }
+    }
+    return kept;
 }
 
 // ============================================
@@ -254,23 +281,38 @@ async function doFlush() {
             const chunk = upserts.slice(i, i + PUSH_CHUNK_SIZE);
             const records = await dexieTable(local).bulkGet(chunk.map(e => e.recordId));
 
-            const rows: AnyRecord[] = [];
+            // Agrupa por conjunto de campos: num envio em lote, o Supabase grava NULL nas
+            // colunas que faltam em alguma linha. Separando, cada linha só altera os campos
+            // que ela tem (ex.: serviço sem o campo de fotos não apaga as fotos da nuvem).
+            const groups = new Map<string, { rows: AnyRecord[]; entries: OutboxEntry[] }>();
             const missing: OutboxEntry[] = [];
             chunk.forEach((entry, idx) => {
                 const rec = records[idx];
-                if (rec) rows.push(toRemoteRow(rec, userId));
-                else missing.push(entry); // apagado localmente depois; a exclusão tem entrada própria
+                if (!rec) {
+                    missing.push(entry); // apagado localmente depois; a exclusão tem entrada própria
+                    return;
+                }
+                const row = toRemoteRow(rec, userId);
+                for (const key of Object.keys(row)) if (row[key] === undefined) delete row[key];
+                const signature = Object.keys(row).sort().join(',');
+                if (!groups.has(signature)) groups.set(signature, { rows: [], entries: [] });
+                groups.get(signature)!.rows.push(row);
+                groups.get(signature)!.entries.push(entry);
             });
             if (missing.length) await acknowledge(missing);
-            if (rows.length === 0) continue;
 
             const onConflict = local === 'settings' ? 'user_id' : 'id';
-            const { error } = await supabase.from(remote).upsert(rows, { onConflict });
-            if (error) {
-                console.error(`Falha ao enviar ${remote}:`, error);
-                break; // mantém o restante na fila para a próxima tentativa
+            let failed = false;
+            for (const group of groups.values()) {
+                const { error } = await supabase.from(remote).upsert(group.rows, { onConflict });
+                if (error) {
+                    console.error(`Falha ao enviar ${remote}:`, error);
+                    failed = true;
+                    break;
+                }
+                await acknowledge(group.entries);
             }
-            await acknowledge(chunk.filter(e => !missing.includes(e)));
+            if (failed) break; // mantém o restante na fila para a próxima tentativa
         }
     }
 }
@@ -294,19 +336,21 @@ function setSyncing(state: boolean) {
 }
 
 async function fetchAllRows(remote: string): Promise<AnyRecord[] | null> {
+    // Serviços carregam fotos em base64: páginas pequenas evitam respostas gigantes que estouram
+    const pageSize = remote === 'services' ? SERVICES_PAGE_SIZE : PULL_PAGE_SIZE;
     const all: AnyRecord[] = [];
-    for (let from = 0; ; from += PULL_PAGE_SIZE) {
+    for (let from = 0; ; from += pageSize) {
         const { data, error } = await supabase
             .from(remote)
             .select('*')
             .order('id')
-            .range(from, from + PULL_PAGE_SIZE - 1);
+            .range(from, from + pageSize - 1);
         if (error) {
             console.error(`Falha ao baixar ${remote}:`, error);
             return null;
         }
         all.push(...(data as AnyRecord[]));
-        if (!data || data.length < PULL_PAGE_SIZE) return all;
+        if (!data || data.length < pageSize) return all;
     }
 }
 
@@ -365,6 +409,15 @@ export async function syncDatabase(): Promise<SyncResult> {
                 continue;
             }
 
+            // Fotos que sumiram da nuvem mas ainda estão neste aparelho: mantém e reenvia
+            const healIds: string[] = [];
+            if (local === 'services' && incoming.length > 0) {
+                const current = await dexieTable(local).bulkGet(incoming.map(r => String(r.id)));
+                incoming.forEach((r, i) => {
+                    if (keepLocalPhotos(r, current[i])) healIds.push(String(r.id));
+                });
+            }
+
             await db.transaction('rw', dexieTable(local), async () => {
                 if (incoming.length > 0) await dexieTable(local).bulkPut(incoming);
 
@@ -377,6 +430,12 @@ export async function syncDatabase(): Promise<SyncResult> {
                     if (gone.length > 0) await dexieTable(local).bulkDelete(gone);
                 }
             });
+
+            if (healIds.length > 0) {
+                console.warn(`Reenviando fotos de ${healIds.length} serviço(s) que estavam sem fotos na nuvem.`);
+                await enqueueUpserts(local, healIds);
+                await flushOutbox();
+            }
         }
 
         console.log('Sync complete.');
@@ -414,16 +473,28 @@ export function subscribeToRealtime(userId: string) {
             if (newRow && 'user_id' in newRow && newRow.user_id !== userId) return;
 
             try {
-                if ((eventType === 'INSERT' || eventType === 'UPDATE') && newRow) {
+                if ((eventType === 'INSERT' || eventType === 'UPDATE') && newRow?.id) {
                     // Ignora eco de alteração local ainda pendente
                     if (await db.outbox.get(`${local}:${newRow.id}`)) return;
+
+                    // O aviso do Realtime NÃO é confiável como registro completo: acima de 1 MB
+                    // ele traz só os campos pequenos (sem fotos, itens, descrição). Busca a
+                    // linha inteira na nuvem antes de gravar.
+                    const { data, error } = await supabase.from(table).select('*').eq('id', newRow.id).maybeSingle();
+                    if (error || !data) return; // o próximo sync resolve
+                    if (await db.outbox.get(`${local}:${newRow.id}`)) return; // mudou localmente enquanto buscava
+
+                    const record = fromRemoteRow(data as AnyRecord);
                     if (local === 'settings') {
                         await db.transaction('rw', db.settings, async () => {
                             await db.settings.clear();
-                            await db.settings.put(fromRemoteRow(newRow) as unknown as CompanySettings);
+                            await db.settings.put(record as unknown as CompanySettings);
                         });
                     } else {
-                        await dexieTable(local).put(fromRemoteRow(newRow));
+                        const current = await dexieTable(local).get(String(record.id));
+                        const kept = local === 'services' && keepLocalPhotos(record, current);
+                        await dexieTable(local).put(record);
+                        if (kept) await enqueueUpserts(local, [String(record.id)]);
                     }
                 } else if (eventType === 'DELETE') {
                     const oldRow = oldRecord as AnyRecord | null;

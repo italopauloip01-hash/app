@@ -135,6 +135,66 @@ describe('fila de sincronização', () => {
     });
 });
 
+describe('fotos nunca são perdidas', () => {
+    const PHOTO = 'data:image/jpeg;base64,' + 'A'.repeat(200);
+
+    it('envio em lote não apaga na nuvem as fotos de serviços sem o campo de fotos', async () => {
+        // Serviço com fotos já na nuvem
+        fake.table('services').set('a', remoteRow('a', { photos_before: [PHOTO] }));
+        await ops.syncDatabase();
+
+        // No aparelho, uma linha "sem campo de fotos" (ex.: registro antigo) e outra com fotos
+        await db.services.put({ ...(await db.services.get('a'))!, photosBefore: undefined });
+        await ops.addService(service({ photosBefore: [PHOTO] }));
+        await ops.enqueueUpserts('services', ['a']);
+        await ops.flushOutbox();
+
+        expect(fake.table('services').get('a')!.photos_before).toEqual([PHOTO]);
+    });
+
+    it('se a nuvem perdeu as fotos e o aparelho ainda tem, mantém e reenvia', async () => {
+        fake.table('services').set('a', remoteRow('a', { photos_before: [PHOTO] }));
+        await ops.syncDatabase();
+
+        // Nuvem perdeu as fotos (NULL)
+        fake.table('services').set('a', remoteRow('a', { photos_before: null }));
+        await ops.syncDatabase();
+
+        expect((await db.services.get('a'))!.photosBefore).toEqual([PHOTO]);
+        expect(fake.table('services').get('a')!.photos_before).toEqual([PHOTO]); // recuperada na nuvem
+    });
+
+    it('remoção intencional (lista vazia) é respeitada', async () => {
+        fake.table('services').set('a', remoteRow('a', { photos_before: [PHOTO] }));
+        await ops.syncDatabase();
+        fake.table('services').set('a', remoteRow('a', { photos_before: [] }));
+        await ops.syncDatabase();
+        expect((await db.services.get('a'))!.photosBefore).toEqual([]);
+    });
+
+    it('aviso do Realtime truncado (registro > 1 MB) não apaga fotos nem itens', async () => {
+        fake.table('services').set('a', remoteRow('a', {
+            photos_before: [PHOTO],
+            items: [{ type: 'Limpeza', description: 'Split 12k', quantity: 1, price: 200 }],
+        }));
+        await ops.syncDatabase();
+        ops.subscribeToRealtime('user-1');
+
+        // Como o Supabase manda quando o registro passa de 1 MB: só campos <= 64 bytes
+        await fake.state.realtimeHandler!({
+            eventType: 'UPDATE',
+            table: 'services',
+            new: { id: 'a', user_id: 'user-1', client_id: 'c1', status: 'Concluído' },
+            old: null,
+        });
+
+        const s = (await db.services.get('a'))!;
+        expect(s.photosBefore).toEqual([PHOTO]);
+        expect(s.items).toHaveLength(1);
+        ops.unsubscribeFromRealtime();
+    });
+});
+
 describe('troca de conta no mesmo aparelho', () => {
     it('limpa os dados da conta anterior antes de sincronizar', async () => {
         await ops.ensureLocalDataOwner('user-1');
