@@ -3,7 +3,7 @@ import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check, X, RotateC
 import { useDashboardStats, useReminders } from '../hooks/useData';
 import { useNavigate } from 'react-router-dom';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, formatSimpleDate, parseLocalDate } from '../utils/dateUtils';
 import { updateService } from '../lib/supabaseOperations';
 
 const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: any) => (
@@ -233,7 +233,7 @@ export function Dashboard() {
                                                         ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 group-hover:bg-orange-600 group-hover:text-white'
                                                         : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white'}
                                             `}>
-                                                {new Date(service.displayDate).getDate()}
+                                                {parseLocalDate(service.displayDate).getDate()}
                                             </div>
                                             <div>
                                                 <div className="flex items-center gap-2">
@@ -264,7 +264,7 @@ export function Dashboard() {
                                                             : `Em ${service.daysRemaining} dias`}
                                                 </span>
                                                 <span className="text-[9px] text-slate-400 font-medium">
-                                                    {new Date(service.displayDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                                    {formatSimpleDate(service.displayDate)}
                                                 </span>
                                             </div>
                                             

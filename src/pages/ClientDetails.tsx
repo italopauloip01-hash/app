@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { formatLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
+import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
 import type { Service } from '../types';
 
 export function ClientDetails() {
@@ -658,7 +658,7 @@ export function ClientDetails() {
                                 }));
                                 return [...acc, ...before, ...after, ...general];
                             }, [])
-                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
                                 .map((photoItem) => (
                                     <div
                                         key={photoItem.id}
@@ -687,7 +687,7 @@ export function ClientDetails() {
                                         </div>
 
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
-                                            <p className="text-[10px] text-white/80 font-medium">{new Date(photoItem.date).toLocaleDateString('pt-BR')}</p>
+                                            <p className="text-[10px] text-white/80 font-medium">{formatLocalDate(photoItem.date)}</p>
                                             <p className="text-xs text-white font-bold">{photoItem.serviceType}</p>
                                         </div>
                                     </div>

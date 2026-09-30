@@ -110,9 +110,8 @@ export function Helpers() {
 
     const openEditModal = (entry: HelperEntry) => {
         setEntryType(entry.type);
-        const d = entry.date instanceof Date ? entry.date : new Date(entry.date);
-        setEntryDate(format(d, 'yyyy-MM-dd'));
-        setEntryAmount(entry.amount.toString());
+        setEntryDate(format(parseLocalDate(entry.date), 'yyyy-MM-dd'));
+        setEntryAmount(String(parseMonetaryValue(entry.amount)));
         setEntryDesc(entry.description || '');
         setEditingEntryId(entry.id!);
         setIsEntryModalOpen(true);
@@ -292,8 +291,8 @@ export function Helpers() {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                            {filteredHelperEntries?.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(entry => {
-                                                const d = entry.date instanceof Date ? entry.date : new Date(entry.date);
+                                            {filteredHelperEntries?.sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime()).map(entry => {
+                                                const d = parseLocalDate(entry.date);
                                                 return (
                                                     <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                                                         <td className="px-6 py-4 whitespace-nowrap">

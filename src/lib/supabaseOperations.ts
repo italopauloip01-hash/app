@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { db } from '../db';
 import type { Client, Service, Helper, HelperEntry, ServiceTemplate, CompanySettings, Estimate } from '../types';
 import { generateUUID } from '../utils/uuid';
+import { normalizeRecord } from '../utils/normalize';
 
 // ============================================
 // Utility: camelCase -> snake_case for Supabase
@@ -509,7 +510,7 @@ export async function syncDatabase() {
 
             // 6. Update local Dexie smoothly without clearing (prevents screen flickering)
             if (remoteData && remoteData.length > 0) {
-                const pullRecords = remoteData.map(r => toCamel(r as Record<string, unknown>));
+                const pullRecords = remoteData.map(r => normalizeRecord(toCamel(r as Record<string, unknown>)));
                 await (table.dexie as any).bulkPut(pullRecords as any[]);
             }
         }
@@ -564,7 +565,7 @@ export async function subscribeToRealtime(userId: string) {
                         case 'INSERT':
                         case 'UPDATE':
                             if (newRecord) {
-                                const camelRecord = toCamel(newRecord as Record<string, unknown>);
+                                const camelRecord = normalizeRecord(toCamel(newRecord as Record<string, unknown>));
                                 await dexieTable.put(camelRecord);
                             }
                             break;

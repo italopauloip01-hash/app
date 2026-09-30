@@ -6,7 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { useSettings, useClients, useServiceTemplates } from '../hooks/useData';
 import { addEstimate, updateEstimate } from '../lib/supabaseOperations';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatLocalDate, parseMonetaryValue } from '../utils/dateUtils';
+import { formatLocalDate, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
 import { generateUUID } from '../utils/uuid';
 
 import { Share } from '@capacitor/share';
@@ -62,7 +62,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                 address: initialEstimate.clientAddress
             });
             setItems(initialEstimate.items);
-            setDate(format(new Date(initialEstimate.date), 'yyyy-MM-dd'));
+            setDate(format(parseLocalDate(initialEstimate.date), 'yyyy-MM-dd'));
             setValidityDays(initialEstimate.validityDays);
         } else if (initialClient) {
             setClientInfo({
@@ -80,7 +80,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
     if (!isOpen) return null;
 
     const totalValue = items.reduce((acc, item) => acc + (parseMonetaryValue(item.price) * (Number(item.quantity) || 1)), 0);
-    const validUntil = new Date(date);
+    const validUntil = parseLocalDate(date);
     validUntil.setDate(validUntil.getDate() + validityDays);
 
     const addItem = () => {
@@ -155,7 +155,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                 clientName: clientInfo.name,
                 clientPhone: clientInfo.phone,
                 clientAddress: clientInfo.address,
-                date: new Date(date),
+                date: parseLocalDate(date),
                 validityDays,
                 items: items.map(item => ({ ...item, quantity: Number(item.quantity) || 1 })),
                 total: totalValue,
@@ -632,7 +632,7 @@ function EstimatePreviewContent({ id, companyName, clientInfo, date, items, tota
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DATA DA EMISSÃO</p>
                         <p className="font-black text-slate-800 text-lg uppercase">
-                            {format(new Date(date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                            {format(parseLocalDate(date), "dd 'de' MMMM, yyyy", { locale: ptBR })}
                         </p>
                     </div>
                     <div className="text-right">

@@ -29,7 +29,7 @@ export function useServices(clientId?: string) {
                 .equals(clientId)
                 .toArray();
             // Ordena em memória (apenas os registros do cliente, não tudo)
-            return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            return results.sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
         } else {
             return await db.services
                 .orderBy('date')
@@ -76,7 +76,11 @@ export function useReminders(includeIgnored: boolean = false) {
 
         const scheduledServices = filteredServices.filter(s => s.status === 'Agendado' || (includeIgnored && s.status === 'Cancelado'));
 
-        const reminderItems = Array.from(latestCompletedPerClient.values()).map(s => {
+        // Serviços sem próxima manutenção são gravados com nextServiceDate == date;
+        // esses não devem virar lembrete.
+        const reminderItems = Array.from(latestCompletedPerClient.values())
+            .filter(s => s.nextServiceDate && parseLocalDate(s.nextServiceDate) > parseLocalDate(s.date))
+            .map(s => {
             const nextDate = parseLocalDate(s.nextServiceDate);
             nextDate.setHours(0, 0, 0, 0);
             const diffTime = nextDate.getTime() - today.getTime();

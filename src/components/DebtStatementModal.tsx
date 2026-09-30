@@ -8,7 +8,7 @@ import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import html2canvas from 'html2canvas';
 import { applyPrintColors } from '../utils/pdfUtils';
-import { formatLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
+import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
 
 interface DebtStatementModalProps {
     isOpen: boolean;
@@ -23,7 +23,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
     const pixKey = settings?.pixKey || '';
 
     // Sort pending services by date ascending
-    const sortedPendingServices = [...pendingServices].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sortedPendingServices = [...pendingServices].sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
 
     const totalDebt = sortedPendingServices.reduce((acc, curr) => acc + getServicePrice(curr), 0);
     const pixData = pixKey ? generatePixPayload(pixKey, totalDebt, companyName) : null;
