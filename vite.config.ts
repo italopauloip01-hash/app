@@ -13,6 +13,7 @@ export default defineConfig({
       manifest: {
         name: 'AirTech Pro - Gestão de Serviços',
         short_name: 'AirTech Pro',
+        lang: 'pt-BR',
         description: 'Aplicativo de gestão para técnicos e climatização',
         theme_color: '#2563eb',
         background_color: '#0f172a',
