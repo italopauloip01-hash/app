@@ -449,6 +449,8 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                                 <EstimatePreviewContent
                                     id="preview-display"
                                     companyName={companyName}
+                                    signature={settings?.signature}
+                                    ownerName={settings?.ownerName}
                                     clientInfo={clientInfo}
                                     date={date}
                                     items={items}
@@ -496,6 +498,8 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                 <EstimatePreviewContent
                     id="estimate-content"
                     companyName={companyName}
+                    signature={settings?.signature}
+                    ownerName={settings?.ownerName}
                     clientInfo={clientInfo}
                     date={date}
                     items={items}
@@ -608,6 +612,8 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
 interface EstimatePreviewProps {
     id: string;
     companyName: string;
+    signature?: string;
+    ownerName?: string;
     clientInfo: { id: string; name: string; phone: string; address: string };
     date: string;
     items: EstimateItem[];
@@ -616,7 +622,7 @@ interface EstimatePreviewProps {
     validUntil: Date;
 }
 
-function EstimatePreviewContent({ id, companyName, clientInfo, date, items, totalValue, validityDays, validUntil }: EstimatePreviewProps) {
+function EstimatePreviewContent({ id, companyName, signature, ownerName, clientInfo, date, items, totalValue, validityDays, validUntil }: EstimatePreviewProps) {
     return (
         <div id={id} className="bg-white p-12 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]">
             {/* Header */}
@@ -719,8 +725,10 @@ function EstimatePreviewContent({ id, companyName, clientInfo, date, items, tota
                     </p>
                 </div>
                 <div className="text-center w-[300px]">
+                    {signature && <img src={signature} alt="Assinatura" className="h-16 mx-auto mb-2 object-contain" />}
                     <div className="h-[2px] bg-slate-900 mb-3"></div>
                     <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em]">{companyName.toUpperCase()}</p>
+                    {ownerName && <p className="text-[10px] text-slate-500 mt-1 uppercase font-semibold">{ownerName}</p>}
                 </div>
             </div>
         </div>

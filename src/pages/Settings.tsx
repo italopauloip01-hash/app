@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Save, Building2, Smartphone, MapPin, CreditCard, Mail, User, FileJson, Download, Upload, CheckCircle2, Signature, Trash2, Users, Plus, Cloud, RefreshCw } from 'lucide-react';
+import { Save, Building2, Smartphone, MapPin, CreditCard, Mail, User, FileJson, Download, Upload, CheckCircle2, Signature, Trash2, PenLine, Users, Plus, Cloud, RefreshCw } from 'lucide-react';
 import { useSettings, useHelpers } from '../hooks/useData';
 import { addHelper, deleteHelper, saveSettings, syncDatabase } from '../lib/supabaseOperations';
 import { exportDatabase, importDatabase } from '../utils/backup';
 import { APP_VERSION } from '../version';
 import type { Helper } from '../types';
 import { Capacitor } from '@capacitor/core';
+import { SignaturePad } from '../components/SignaturePad';
+import { processSignaturePhoto } from '../utils/signature';
+import { toError } from '../lib/utils';
 
 const isNativeApp = Capacitor.isNativePlatform();
 
@@ -22,6 +25,8 @@ export function Settings() {
     const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
     const [signature, setSignature] = useState<string | undefined>(undefined);
+    const [signatureMode, setSignatureMode] = useState<'draw' | null>(null);
+    const [isProcessingSignature, setIsProcessingSignature] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -92,6 +97,17 @@ export function Settings() {
             await saveSettings({ ...settings, ...dataToSave });
         } catch (error) {
             console.error('Failed to update auto backup:', error);
+        }
+    };
+
+    // A assinatura é salva na hora (não depende do botão "Salvar" do formulário)
+    const handleSignatureChange = async (value: string | undefined) => {
+        setSignature(value);
+        try {
+            await saveSettings({ ...settings, name, phone, pixKey, address, cnpj, email, ownerName, autoBackupEnabled, darkMode, signature: value });
+        } catch (error) {
+            console.error('Failed to save signature:', error);
+            alert('Erro ao salvar a assinatura');
         }
     };
 
@@ -328,96 +344,63 @@ export function Settings() {
                                     Esta assinatura será exibida no final dos recibos e extratos de cobrança.
                                 </p>
 
-                                {signature ? (
-                                    <div className="relative w-full max-w-sm aspect-[3/1] bg-white border-2 border-slate-100 dark:border-slate-700 rounded-xl overflow-hidden group">
-                                        <img src={signature} alt="Assinatura" className="w-full h-full object-contain" />
-                                        <button
-                                            type="button"
-                                            onClick={() => setSignature(undefined)}
-                                            className="absolute inset-0 bg-red-600/80 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold gap-2"
-                                        >
-                                            <Trash2 size={20} />
-                                            REMOVER ASSINATURA
-                                        </button>
+                                {signatureMode === 'draw' ? (
+                                    <SignaturePad
+                                        onSave={(dataUrl) => { handleSignatureChange(dataUrl); setSignatureMode(null); }}
+                                        onCancel={() => setSignatureMode(null)}
+                                    />
+                                ) : signature ? (
+                                    <div className="space-y-3">
+                                        {/* Fundo quadriculado mostra que a assinatura tem fundo transparente */}
+                                        <div className="w-full max-w-sm h-32 rounded-xl border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center p-4 bg-white bg-[linear-gradient(45deg,#f1f5f9_25%,transparent_25%,transparent_75%,#f1f5f9_75%),linear-gradient(45deg,#f1f5f9_25%,transparent_25%,transparent_75%,#f1f5f9_75%)] bg-[length:16px_16px] bg-[position:0_0,8px_8px]">
+                                            <img src={signature} alt="Assinatura" className="max-w-full max-h-full object-contain" />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button type="button" onClick={() => setSignatureMode('draw')} className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+                                                REFAZER
+                                            </button>
+                                            <button type="button" onClick={() => handleSignatureChange(undefined)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100">
+                                                <Trash2 size={14} /> REMOVER
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <label className="flex flex-col items-center justify-center w-full max-w-sm aspect-[3/1] border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all text-slate-500 dark:text-slate-400">
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <Upload className="w-8 h-8 mb-3" />
-                                            <p className="text-sm font-bold uppercase tracking-widest leading-none">FAZER UPLOAD</p>
-                                            <p className="text-[10px] mt-1 text-slate-400 dark:text-slate-500">PNG ou JPG com fundo branco</p>
-                                        </div>
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            accept="image/*"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file) return;
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => {
-                                                    const img = new Image();
-                                                    img.onload = () => {
-                                                        // Desenhar a imagem no canvas para analisar os pixels
-                                                        const canvas = document.createElement('canvas');
-                                                        canvas.width = img.width;
-                                                        canvas.height = img.height;
-                                                        const ctx = canvas.getContext('2d')!;
-                                                        ctx.drawImage(img, 0, 0);
-
-                                                        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                                                        let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
-
-                                                        // Varrer todos os pixels para encontrar os limites da tinta
-                                                        for (let y = 0; y < canvas.height; y++) {
-                                                            for (let x = 0; x < canvas.width; x++) {
-                                                                const idx = (y * canvas.width + x) * 4;
-                                                                const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2], a = pixels[idx + 3];
-                                                                // Pixel é "tinta" se não for branco (ou quase branco) e for opaco
-                                                                const isInk = a > 30 && !(r > 230 && g > 230 && b > 230);
-                                                                if (isInk) {
-                                                                    if (x < minX) minX = x;
-                                                                    if (x > maxX) maxX = x;
-                                                                    if (y < minY) minY = y;
-                                                                    if (y > maxY) maxY = y;
-                                                                }
-                                                            }
-                                                        }
-
-                                                        // Se não encontrar tinta, salvar a imagem original
-                                                        const inkWidth = maxX - minX;
-                                                        const inkHeight = maxY - minY;
-                                                        if (inkWidth <= 0 || inkHeight <= 0) {
-                                                            setSignature(reader.result as string);
-                                                            return;
-                                                        }
-
-                                                        // Adicionar margem ao redor da assinatura
-                                                        const padding = 16;
-                                                        const cropX = Math.max(0, minX - padding);
-                                                        const cropY = Math.max(0, minY - padding);
-                                                        const cropW = Math.min(canvas.width - cropX, inkWidth + padding * 2);
-                                                        const cropH = Math.min(canvas.height - cropY, inkHeight + padding * 2);
-
-                                                        // Criar novo canvas só com a assinatura recortada
-                                                        const trimCanvas = document.createElement('canvas');
-                                                        trimCanvas.width = cropW;
-                                                        trimCanvas.height = cropH;
-                                                        const trimCtx = trimCanvas.getContext('2d')!;
-                                                        trimCtx.fillStyle = '#ffffff';
-                                                        trimCtx.fillRect(0, 0, cropW, cropH);
-                                                        trimCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-                                                        setSignature(trimCanvas.toDataURL('image/png'));
-                                                    };
-                                                    img.src = reader.result as string;
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }}
-                                        />
-                                    </label>
-                                )}
-                            </div>
+                                    <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSignatureMode('draw')}
+                                            className="flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-emerald-300 dark:border-emerald-800 rounded-2xl text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all"
+                                        >
+                                            <PenLine className="w-7 h-7" />
+                                            <span className="text-xs font-bold uppercase tracking-widest">Desenhar</span>
+                                            <span className="text-[10px] text-slate-400">Assine com o dedo</span>
+                                        </button>
+                                        <label className="flex flex-col items-center justify-center gap-2 py-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl cursor-pointer text-slate-500 dark:text-slate-400 hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all">
+                                            {isProcessingSignature ? <RefreshCw className="w-7 h-7 animate-spin" /> : <Upload className="w-7 h-7" />}
+                                            <span className="text-xs font-bold uppercase tracking-widest">{isProcessingSignature ? 'Processando' : 'Enviar foto'}</span>
+                                            <span className="text-[10px] text-slate-400 text-center px-2">Assinatura em papel branco</span>
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/*"
+                                                disabled={isProcessingSignature}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    e.target.value = '';
+                                                    if (!file) return;
+                                                    setIsProcessingSignature(true);
+                                                    try {
+                                                        handleSignatureChange(await processSignaturePhoto(file));
+                                                    } catch (err) {
+                                                        alert(toError(err).message);
+                                                    } finally {
+                                                        setIsProcessingSignature(false);
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    </div>
+                                )}                            </div>
                         </div>
 
                         {/* Section 2.6: Team Management */}
