@@ -97,9 +97,7 @@ export function Layout() {
       `}>
                 <div className="p-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-                            <Wrench className="w-6 h-6" />
-                        </div>
+                        <img src="/favicon.svg" alt="" className="w-10 h-10 shrink-0 shadow-lg shadow-blue-900/30 rounded-[22%]" />
                         <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700 dark:from-blue-400 dark:to-indigo-400">
                             {companyName}
                         </h1>

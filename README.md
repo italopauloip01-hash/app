@@ -33,6 +33,16 @@ npx cap sync android
 
 e gerar/instalar o APK novamente pelo Android Studio.
 
+### Ícone
+
+A fonte do ícone é `assets/icon.svg`. Os PNGs do site/PWA ficam em `public/`
+(`favicon`, `apple-touch-icon`, `pwa-*`, incluindo a versão `maskable`). Para o Android,
+`assets/icon-only.png`, `icon-foreground.png` e `icon-background.png` alimentam:
+
+```bash
+npx @capacitor/assets generate --android
+```
+
 ## Arquitetura de dados
 
 ```

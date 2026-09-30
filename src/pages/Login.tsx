@@ -2,7 +2,7 @@ import { toError } from '../lib/utils';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
@@ -93,9 +93,7 @@ export function Login() {
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
             <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden">
                 <div className="p-8 pb-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center">
-                    <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20">
-                        <Wrench size={32} className="text-white drop-shadow-md" />
-                    </div>
+                    <img src="/favicon.svg" alt="" className="w-16 h-16 mx-auto mb-4 rounded-[22%] shadow-xl shadow-black/20 ring-1 ring-white/20" />
                     <h1 className="text-2xl font-bold tracking-tight">AirTech Pro</h1>
                     <p className="text-blue-100 text-sm mt-1">Gestão inteligente para técnicos</p>
                 </div>
