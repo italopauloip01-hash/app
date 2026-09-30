@@ -48,7 +48,7 @@ export function extractInk(image: ImageData, { contrast = 25 }: InkOptions = {})
     // chega a ficar bem mais escuro que o papel claro e ainda precisa ser aceito.
     const sorted = Float32Array.from(lum).sort();
     const paperLevel = sorted[Math.floor(sorted.length * 0.9)];
-    const minLocalMean = paperLevel * 0.5;
+    const minLocalMean = paperLevel * 0.35;
 
     // Cor média da tinta, para pintar o traço de forma uniforme
     let inkR = 0, inkG = 0, inkB = 0, inkCount = 0;
