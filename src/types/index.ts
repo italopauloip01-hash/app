@@ -46,6 +46,8 @@ export interface Service {
     status: 'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado';
     paymentStatus: 'Pago' | 'Pendente';
     paymentMethod?: 'Dinheiro' | 'Cartão' | 'Pix' | 'Transferência';
+    startTime?: string | null; // 'HH:mm' — horário marcado (agenda); null = sem horário
+    durationMinutes?: number | null; // duração prevista; se vazio, é estimada pelos itens
     reminderIgnored?: boolean;
     reminderIgnoredAt?: Date;
 }
@@ -63,6 +65,8 @@ export interface CompanySettings {
     lastAutoBackupTime?: string;
     darkMode?: boolean;
     signature?: string;
+    workStart?: string; // 'HH:mm' — início do expediente (agenda)
+    workEnd?: string;
 }
 
 export interface ServiceReminder {
@@ -78,6 +82,7 @@ export interface ServiceTemplate {
     name: string;
     description: string;
     price: number;
+    durationMinutes?: number; // tempo médio de execução (agenda)
 }
 export interface Estimate {
     id?: string;

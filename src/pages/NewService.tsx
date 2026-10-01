@@ -3,8 +3,9 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { addService, updateService } from '../lib/supabaseOperations';
-import { useServiceTemplates } from '../hooks/useData';
-import { ArrowLeft, Camera, Calendar, Save, DollarSign, ChevronDown, UserPlus, Plus, Trash2, Loader2 } from 'lucide-react';
+import { useServiceTemplates, useSettings } from '../hooks/useData';
+import { DEFAULT_WORK_END, DEFAULT_WORK_START, dayBlocks, estimateDuration, findConflicts, formatDuration, fromMinutes, suggestSlots, toMinutes } from '../utils/schedule';
+import { ArrowLeft, Camera, Calendar, Save, DollarSign, ChevronDown, UserPlus, Plus, Trash2, Loader2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { ClientForm } from '../components/ClientForm';
 import { parseLocalDate, parseMonetaryValue } from '../utils/dateUtils';
 import { format } from 'date-fns';
@@ -22,17 +23,23 @@ export function NewService() {
     const templates = useServiceTemplates();
 
     // Get clientId from navigation state or URL
-    const state = location.state as { clientId?: string; prefillItems?: ServiceItem[]; isMaintenance?: boolean } | null;
+    const state = location.state as {
+        clientId?: string; prefillItems?: ServiceItem[]; isMaintenance?: boolean;
+        date?: string; startTime?: string; fromAgenda?: boolean; // vindo da Agenda
+    } | null;
     const [clientId, setClientId] = useState<string>(state?.clientId || '');
 
     // Form State
-    const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+    const [date, setDate] = useState(state?.date || format(new Date(), 'yyyy-MM-dd'));
+    // Agenda: horário (opcional) e duração. durationOverride null = estimada pelos itens
+    const [startTime, setStartTime] = useState(state?.startTime || '');
+    const [durationOverride, setDurationOverride] = useState<number | null>(null);
     const [nextDate, setNextDate] = useState('');
     const [photosBefore, setPhotosBefore] = useState<string[]>([]);
     const [photosAfter, setPhotosAfter] = useState<string[]>([]);
     // Fotos gerais (catálogo). Não são editadas aqui, mas precisam ser preservadas ao salvar.
     const [generalPhotos, setGeneralPhotos] = useState<string[]>([]);
-    const [status, setStatus] = useState<'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado'>('Concluído');
+    const [status, setStatus] = useState<'Agendado' | 'Concluído' | 'Pendente' | 'Cancelado'>(state?.fromAgenda ? 'Agendado' : 'Concluído');
     const [paymentStatus, setPaymentStatus] = useState<'Pago' | 'Pendente'>('Pendente');
     const [paymentMethod, setPaymentMethod] = useState<'Dinheiro' | 'Cartão' | 'Pix' | 'Transferência'>('Pix');
     const [items, setItems] = useState<FormItem[]>(
@@ -52,6 +59,8 @@ export function NewService() {
                 if (service) {
                     setClientId(service.clientId);
                     setDate(format(parseLocalDate(service.date), 'yyyy-MM-dd'));
+                    setStartTime(service.startTime || '');
+                    setDurationOverride(service.durationMinutes ?? null);
                     if (service.nextServiceDate) {
                         setNextDate(format(parseLocalDate(service.nextServiceDate), 'yyyy-MM-dd'));
                     }
@@ -81,6 +90,18 @@ export function NewService() {
 
     // Load clients for dropdown if no clientId provided
     const clients = useLiveQuery(() => db.clients.toArray());
+
+    // Agenda do dia escolhido: o que já está marcado, choques e horários livres
+    const settings = useSettings();
+    const allServices = useLiveQuery(() => db.services.toArray()) || [];
+    const workStart = settings?.workStart || DEFAULT_WORK_START;
+    const workEnd = settings?.workEnd || DEFAULT_WORK_END;
+    const estimatedDuration = estimateDuration(items, templates || []);
+    const duration = durationOverride ?? estimatedDuration;
+    const dayServices = dayBlocks(allServices, date, templates || [], id);
+    const conflicts = startTime ? findConflicts(dayServices, toMinutes(startTime), duration) : [];
+    const freeSlots = suggestSlots(dayServices, duration, workStart, workEnd);
+    const clientName = (cid: string) => clients?.find(c => c.id === cid)?.name || 'Cliente';
 
     // Auto-calculate next date (6 months)
     useEffect(() => {
@@ -233,6 +254,8 @@ export function NewService() {
                 })),
                 price: Number(totalPrice) || 0,
                 photos: generalPhotos,
+                startTime: startTime || null,
+                durationMinutes: durationOverride,
                 photosBefore: photosBefore || [],
                 photosAfter: photosAfter || [],
                 status: status || 'Concluído',
@@ -309,6 +332,96 @@ export function NewService() {
                             onChange={(e) => setDate(e.target.value)}
                             className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                         />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Horário</label>
+                            <div className="flex gap-1">
+                                <input
+                                    type="time"
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-xl border outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2
+                                        ${conflicts.length ? 'border-red-400 focus:ring-red-500/20' : 'border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-blue-500/20'}`}
+                                />
+                                {startTime && (
+                                    <button type="button" onClick={() => setStartTime('')} className="px-2 text-xs text-slate-400 hover:text-red-500" title="Sem horário">✕</button>
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Duração prevista</label>
+                            <select
+                                value={durationOverride ?? ''}
+                                onChange={(e) => setDurationOverride(e.target.value ? Number(e.target.value) : null)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                            >
+                                <option value="">Automática ({formatDuration(estimatedDuration)})</option>
+                                {[30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480, 600].map(m => (
+                                    <option key={m} value={m}>{formatDuration(m)}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Agenda do dia: evita marcar dois clientes no mesmo horário */}
+                    <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-3 space-y-2">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <Clock size={13} /> Agenda de {format(parseLocalDate(date), 'dd/MM')}
+                            {startTime && <span className="normal-case font-semibold text-slate-400">· este serviço: {startTime} às {fromMinutes(toMinutes(startTime) + duration)}</span>}
+                        </p>
+
+                        {dayServices.length === 0 ? (
+                            <p className="text-sm text-slate-400">Nenhum outro serviço com horário neste dia.</p>
+                        ) : (
+                            <div className="space-y-1">
+                                {dayServices.map(b => {
+                                    const clash = conflicts.includes(b);
+                                    return (
+                                        <div key={b.service.id} className={`flex items-center gap-2 text-sm px-2 py-1 rounded-lg ${clash ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' : 'text-slate-600 dark:text-slate-300'}`}>
+                                            <span className="font-bold tabular-nums w-[92px] shrink-0">{fromMinutes(b.start)}–{fromMinutes(b.end)}</span>
+                                            <span className="truncate">{b.service.type} · {clientName(b.service.clientId)}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {conflicts.length > 0 && (
+                            <p className="text-sm font-semibold text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                                <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                                Choca com {conflicts.length === 1 ? 'outro serviço' : `${conflicts.length} serviços`} (contando 30 min de deslocamento).
+                            </p>
+                        )}
+                        {startTime && conflicts.length === 0 && (
+                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                <CheckCircle2 size={16} /> Horário livre.
+                            </p>
+                        )}
+
+                        {freeSlots.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="text-xs text-slate-500">Cabe {formatDuration(duration)} às:</span>
+                                {freeSlots.slice(0, 8).map(slot => (
+                                    <button
+                                        key={slot}
+                                        type="button"
+                                        onClick={() => setStartTime(slot)}
+                                        className={`px-2 py-1 rounded-lg text-xs font-bold border transition-colors
+                                            ${slot === startTime
+                                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                                : 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'}`}
+                                    >
+                                        {slot}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                Não cabe mais {formatDuration(duration)} neste dia dentro do expediente ({workStart}–{workEnd}).
+                            </p>
+                        )}
                     </div>
 
                     <div>

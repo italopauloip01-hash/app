@@ -195,6 +195,53 @@ describe('fotos nunca são perdidas', () => {
     });
 });
 
+describe('campos novos antes da migração do banco (agenda)', () => {
+    beforeEach(() => { fake.state.missingColumns = {}; });
+
+    it('coluna que não existe na nuvem: o resto sincroniza e o campo fica no aparelho', async () => {
+        fake.state.missingColumns = { services: ['start_time', 'duration_minutes'] };
+        const id = await ops.addService(service({ startTime: '13:00', durationMinutes: 180 }));
+        await ops.syncDatabase();
+
+        const remote = fake.table('services').get(id)!;
+        expect(remote).toBeTruthy(); // o serviço subiu
+        expect('start_time' in remote).toBe(false);
+        expect(await db.outbox.count()).toBe(0);
+
+        const local = (await db.services.get(id))!;
+        expect(local.startTime).toBe('13:00'); // download não apagou o horário
+        expect(local.durationMinutes).toBe(180);
+    });
+
+    it('depois da migração, o campo sincroniza normalmente', async () => {
+        fake.state.missingColumns = { services: ['start_time'] };
+        await ops.addService(service({ startTime: '08:00' }));
+        await ops.syncDatabase(); // app descobre que a coluna falta
+
+        fake.state.missingColumns = {}; // migração aplicada
+        const id = await ops.addService(service({ startTime: '09:30' }));
+        await ops.syncDatabase();
+        expect(fake.table('services').get(id)!.start_time).toBe('09:30');
+    });
+
+    it('limpar um campo (null) chega na nuvem', async () => {
+        const id = await ops.addService(service({ startTime: '09:30' }));
+        await ops.syncDatabase();
+        await ops.updateService(id, { startTime: null });
+        await ops.syncDatabase();
+        expect(fake.table('services').get(id)!.start_time).toBeNull();
+    });
+
+    it('campo de fotos vazio no aparelho nunca apaga as fotos da nuvem', async () => {
+        fake.table('services').set('a', remoteRow('a', { photos_before: ['foto'] }));
+        await ops.syncDatabase();
+        await db.services.put({ ...(await db.services.get('a'))!, photosBefore: undefined });
+        await ops.enqueueUpserts('services', ['a']);
+        await ops.flushOutbox();
+        expect(fake.table('services').get('a')!.photos_before).toEqual(['foto']);
+    });
+});
+
 describe('troca de conta no mesmo aparelho', () => {
     it('limpa os dados da conta anterior antes de sincronizar', async () => {
         await ops.ensureLocalDataOwner('user-1');

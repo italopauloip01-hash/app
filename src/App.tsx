@@ -16,6 +16,7 @@ const Services = lazy(() => import('./pages/Services').then(m => ({ default: m.S
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Helpers = lazy(() => import('./pages/Helpers').then(m => ({ default: m.Helpers })));
 const Estimates = lazy(() => import('./pages/Estimates').then(m => ({ default: m.Estimates })));
+const Agenda = lazy(() => import('./pages/Agenda').then(m => ({ default: m.Agenda })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[400px]">
@@ -53,6 +54,7 @@ function App() {
               <Route path="reminders" element={page(<Dashboard />)} />
               <Route path="services" element={page(<Services />)} />
               <Route path="estimates" element={page(<Estimates />)} />
+              <Route path="agenda" element={page(<Agenda />)} />
               <Route path="services/new" element={page(<NewService />)} />
               <Route path="services/:id/edit" element={page(<NewService />)} />
             </Route>

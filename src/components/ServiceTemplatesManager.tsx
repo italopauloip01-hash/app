@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Plus, Trash2, Edit2, Check, Tag, DollarSign, FileText } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, Tag, DollarSign, FileText, Clock } from 'lucide-react';
+import { formatDuration, itemDuration } from '../utils/schedule';
+
+const DURATION_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480];
 import { addServiceTemplate, updateServiceTemplate, deleteServiceTemplate } from '../lib/supabaseOperations';
 import { useServiceTemplates } from '../hooks/useData';
 import type { ServiceTemplate } from '../types';
@@ -95,6 +98,21 @@ export function ServiceTemplatesManager() {
                     </div>
 
                     <div className="space-y-1 mb-4">
+                        <label className="text-xs font-semibold text-slate-500 uppercase">Tempo médio (para a agenda)</label>
+                        <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 focus-within:ring-2 ring-blue-500/20">
+                            <Clock size={16} className="text-blue-500" />
+                            <select
+                                value={formData.durationMinutes ?? ''}
+                                onChange={e => setFormData({ ...formData, durationMinutes: e.target.value ? Number(e.target.value) : undefined })}
+                                className="flex-1 outline-none text-sm bg-transparent dark:text-white"
+                            >
+                                <option value="">Automático ({formatDuration(itemDuration({ type: formData.name }))} pelo tipo)</option>
+                                {DURATION_OPTIONS.map(m => <option key={m} value={m}>{formatDuration(m)}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-1 mb-4">
                         <label className="text-xs font-semibold text-slate-500 uppercase">Descrição Padrão</label>
                         <div className="flex gap-2 px-3 py-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 focus-within:ring-2 ring-blue-500/20">
                             <FileText size={16} className="text-slate-400 mt-0.5" />
@@ -135,6 +153,10 @@ export function ServiceTemplatesManager() {
                             <p className="text-sm text-slate-500 mt-1 line-clamp-2">{template.description || 'Sem descrição.'}</p>
                             <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-xs font-bold border border-green-100 dark:border-green-900/50">
                                 R$ {(Number(template.price) || 0).toFixed(2)}
+                            </div>
+                            <div className="mt-2 ml-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md text-xs font-bold border border-blue-100 dark:border-blue-900/50">
+                                <Clock size={12} />
+                                {formatDuration(itemDuration({ type: template.name }, [template]))}
                             </div>
                         </div>
                         <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

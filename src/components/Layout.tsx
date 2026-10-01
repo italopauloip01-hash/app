@@ -11,6 +11,7 @@ import {
     Bell,
     LogOut,
     FileText,
+    CalendarDays,
     type LucideIcon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -111,6 +112,7 @@ export function Layout() {
                     <p className="px-4 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">{companyName}</p>
                     <NavItem to="/" icon={LayoutDashboard} label="Dashboard" active={location.pathname === '/'} onClick={() => setSidebarOpen(false)} />
                     <NavItem to="/clients" icon={Users} label="Clientes" active={location.pathname.startsWith('/clients')} onClick={() => setSidebarOpen(false)} />
+                    <NavItem to="/agenda" icon={CalendarDays} label="Agenda" active={location.pathname === '/agenda'} onClick={() => setSidebarOpen(false)} />
                     <NavItem to="/services" icon={Wrench} label="Serviços" active={location.pathname.startsWith('/services')} onClick={() => setSidebarOpen(false)} />
                     <NavItem to="/estimates" icon={FileText} label="Orçamentos" active={location.pathname.startsWith('/estimates')} onClick={() => setSidebarOpen(false)} />
                     <NavItem to="/helpers" icon={Users} label="Ajudantes" active={location.pathname.startsWith('/helpers')} onClick={() => setSidebarOpen(false)} />
@@ -162,7 +164,8 @@ export function Layout() {
                                 location.pathname === '/clients' ? 'Clientes' :
                                     location.pathname === '/services' ? 'Serviços' :
                                         location.pathname === '/helpers' ? 'Ajudantes' :
-                                            location.pathname === '/estimates' ? 'Orçamentos' : 'Visão Geral'}
+                                            location.pathname === '/estimates' ? 'Orçamentos' :
+                                                location.pathname === '/agenda' ? 'Agenda' : 'Visão Geral'}
                         </h2>
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
                             v{APP_VERSION}

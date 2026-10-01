@@ -75,6 +75,36 @@ function fromRemoteRow(row: AnyRecord): AnyRecord {
 // e as fotos são reenviadas. Lista vazia [] na nuvem é remoção intencional e é aceita.
 // ============================================
 const PHOTO_FIELDS = ['photos', 'photosBefore', 'photosAfter'] as const;
+const REMOTE_PHOTO_COLUMNS = ['photos', 'photos_before', 'photos_after'];
+
+/**
+ * Campos que existem no aparelho mas não vieram da nuvem (coluna ainda não criada no
+ * Supabase, ex.: horário da agenda) são mantidos, senão o download os apagaria.
+ * Campo que veio como null da nuvem foi limpo de propósito e é aceito.
+ */
+export function keepLocalOnlyFields(incoming: AnyRecord, current: AnyRecord | undefined) {
+    if (!current) return;
+    for (const key of Object.keys(current)) {
+        if (!(key in incoming)) incoming[key] = current[key];
+    }
+}
+
+// Colunas que o Supabase ainda não tem (migração não aplicada). O campo continua salvo
+// no aparelho e só deixa de subir até a coluna existir. A lista é esquecida a cada
+// sincronização completa, então assim que a migração rodar o campo volta a subir.
+const missingColumns = new Map<string, Set<string>>();
+
+function missingColumnFrom(error: { message?: string } | null): string | null {
+    return /Could not find the '([^']+)' column/.exec(error?.message ?? '')?.[1] ?? null;
+}
+
+function withoutMissingColumns(remote: string, row: AnyRecord): AnyRecord {
+    const missing = missingColumns.get(remote);
+    if (!missing?.size) return row;
+    const copy = { ...row };
+    for (const col of missing) delete copy[col];
+    return copy;
+}
 
 /** Mantém no registro vindo da nuvem as fotos que só existem no aparelho. Retorna true se manteve alguma. */
 export function keepLocalPhotos(incoming: AnyRecord, current: AnyRecord | undefined): boolean {
@@ -293,7 +323,11 @@ async function doFlush() {
                     return;
                 }
                 const row = toRemoteRow(rec, userId);
-                for (const key of Object.keys(row)) if (row[key] === undefined) delete row[key];
+                // Campo presente mas vazio = limpar na nuvem (null). Campo ausente = não mexer.
+                for (const key of Object.keys(row)) if (row[key] === undefined) row[key] = null;
+                // Fotos nunca sobem como null (isso apagaria na nuvem). Remover fotos de
+                // propósito grava lista vazia [], que sobe normalmente.
+                for (const key of REMOTE_PHOTO_COLUMNS) if (row[key] === null) delete row[key];
                 const signature = Object.keys(row).sort().join(',');
                 if (!groups.has(signature)) groups.set(signature, { rows: [], entries: [] });
                 groups.get(signature)!.rows.push(row);
@@ -304,9 +338,24 @@ async function doFlush() {
             const onConflict = local === 'settings' ? 'user_id' : 'id';
             let failed = false;
             for (const group of groups.values()) {
-                const { error } = await supabase.from(remote).upsert(group.rows, { onConflict });
-                if (error) {
-                    console.error(`Falha ao enviar ${remote}:`, error);
+                let sent = false;
+                for (let attempt = 0; attempt < 10; attempt++) {
+                    const rows = group.rows.map(r => withoutMissingColumns(remote, r));
+                    const { error } = await supabase.from(remote).upsert(rows, { onConflict });
+                    if (!error) {
+                        sent = true;
+                        break;
+                    }
+                    const column = missingColumnFrom(error);
+                    if (!column) {
+                        console.error(`Falha ao enviar ${remote}:`, error);
+                        break;
+                    }
+                    console.warn(`Coluna "${column}" ainda não existe em ${remote}; enviando sem ela (fica salva no aparelho).`);
+                    if (!missingColumns.has(remote)) missingColumns.set(remote, new Set());
+                    missingColumns.get(remote)!.add(column);
+                }
+                if (!sent) {
                     failed = true;
                     break;
                 }
@@ -381,6 +430,7 @@ export async function syncDatabase(): Promise<SyncResult> {
     let ok = true;
     try {
         setSyncing(true);
+        missingColumns.clear(); // reavalia: a migração pode ter sido aplicada
 
         // 1. Envia pendências locais
         await flushOutbox();
@@ -402,6 +452,8 @@ export async function syncDatabase(): Promise<SyncResult> {
             if (local === 'settings') {
                 if (incoming.length > 0 && pending.size === 0) {
                     await db.transaction('rw', db.settings, async () => {
+                        const current = (await db.settings.toArray())[0];
+                        keepLocalOnlyFields(incoming[0], current as unknown as AnyRecord);
                         await db.settings.clear();
                         await db.settings.put(incoming[0] as unknown as CompanySettings);
                     });
@@ -409,12 +461,14 @@ export async function syncDatabase(): Promise<SyncResult> {
                 continue;
             }
 
-            // Fotos que sumiram da nuvem mas ainda estão neste aparelho: mantém e reenvia
+            // Campos que a nuvem ainda não tem e fotos que sumiram da nuvem mas ainda estão
+            // neste aparelho: mantém (e reenvia as fotos)
             const healIds: string[] = [];
-            if (local === 'services' && incoming.length > 0) {
+            if (incoming.length > 0) {
                 const current = await dexieTable(local).bulkGet(incoming.map(r => String(r.id)));
                 incoming.forEach((r, i) => {
-                    if (keepLocalPhotos(r, current[i])) healIds.push(String(r.id));
+                    keepLocalOnlyFields(r, current[i]);
+                    if (local === 'services' && keepLocalPhotos(r, current[i])) healIds.push(String(r.id));
                 });
             }
 
@@ -487,11 +541,14 @@ export function subscribeToRealtime(userId: string) {
                     const record = fromRemoteRow(data as AnyRecord);
                     if (local === 'settings') {
                         await db.transaction('rw', db.settings, async () => {
+                            const currentSettings = (await db.settings.toArray())[0];
+                            keepLocalOnlyFields(record, currentSettings as unknown as AnyRecord);
                             await db.settings.clear();
                             await db.settings.put(record as unknown as CompanySettings);
                         });
                     } else {
                         const current = await dexieTable(local).get(String(record.id));
+                        keepLocalOnlyFields(record, current);
                         const kept = local === 'services' && keepLocalPhotos(record, current);
                         await dexieTable(local).put(record);
                         if (kept) await enqueueUpserts(local, [String(record.id)]);

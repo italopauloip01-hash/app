@@ -10,6 +10,8 @@ export function createFakeSupabase() {
         failUpserts: false,
         upsertCalls: 0,
         realtimeHandler: null as RealtimeHandler | null,
+        /** Colunas que "não existem" na tabela (migração não aplicada) */
+        missingColumns: {} as Record<string, string[]>,
     };
 
     const table = (name: string) => {
@@ -30,6 +32,9 @@ export function createFakeSupabase() {
                 async upsert(rows: Row[], opts: { onConflict: string }) {
                     state.upsertCalls++;
                     if (state.failUpserts) return { error: { message: 'falha simulada' } };
+                    // Como o PostgREST quando a coluna não existe
+                    const missing = (state.missingColumns[name] ?? []).find(col => rows.some(r => col in r));
+                    if (missing) return { error: { code: 'PGRST204', message: `Could not find the '${missing}' column of '${name}' in the schema cache` } };
                     // Como o PostgREST: as colunas do lote são a união das chaves de todas as
                     // linhas; numa linha sem a chave, a coluna é gravada como NULL.
                     const columns = [...new Set(rows.flatMap(r => Object.keys(r)))];
