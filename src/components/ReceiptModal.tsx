@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
+import { DocumentPreview } from './DocumentPreview';
 import { toError } from '../lib/utils';
-import { X, Share2, Image, FileText } from 'lucide-react';
+import { X, Share2, Image } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -164,8 +165,8 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:bg-white print:p-0">
-            <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh] print:max-h-none print:shadow-none print:w-full relative">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:bg-white print:p-0">
+            <div className="bg-white w-full max-w-4xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:w-full relative">
 
                 {/* Modal Header FIXO */}
                 <div className="p-4 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-white print:hidden flex-shrink-0 z-10 w-full">
@@ -199,19 +200,11 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                     </div>
                 </div>
 
-                {/* Modal View Simples sem preview poluindo a tela */}
-                <div className="flex-1 p-8 sm:p-12 flex flex-col items-center justify-center bg-slate-50 text-center">
-                    <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-sm">
-                        <FileText size={48} strokeWidth={1.5} />
-                    </div>
-                    <h3 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">Recibo Pronto</h3>
-                    <p className="text-slate-500 max-w-sm text-sm sm:text-base leading-relaxed">
-                        O recibo para <strong>{client.name}</strong> foi gerado e está pronto para ser salvo ou compartilhado.
-                    </p>
-                </div>
+                {/* Pré-visualização: é o próprio documento que vira a imagem */}
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 bg-slate-50 space-y-3">
+                    <p className="text-sm text-slate-600 truncate">Recibo de <strong>{client.name}</strong></p>
+                    <DocumentPreview>
 
-                {/* Container oculto para o html2canvas (fora da tela) */}
-                <div className="absolute top-[-9999px] left-[-9999px] opacity-0 pointer-events-none overflow-hidden">
                     {/* O Documento Centralizado com tamanho fixo perfeito de Papel */}
                     <div id="receipt-content" className="bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
 
@@ -325,7 +318,9 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                         </div>
 
                     </div>
+                    </DocumentPreview>
                 </div>
+
 
                 {/* Print Styles */}
                 <style dangerouslySetInnerHTML={{
