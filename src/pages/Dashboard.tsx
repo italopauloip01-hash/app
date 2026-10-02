@@ -3,7 +3,7 @@ import { Wrench, Users, Calendar, ArrowUpRight, AlertTriangle, Check, X, RotateC
 import { useDashboardStats, useReminders, useCompanyName } from '../hooks/useData';
 import { useNavigate } from 'react-router-dom';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatLocalDate, formatSimpleDate, parseLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, formatSimpleDate, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 import { updateService } from '../lib/supabaseOperations';
 
 interface StatCardProps {
@@ -13,29 +13,31 @@ interface StatCardProps {
     icon: LucideIcon;
     color: string;
     onClick?: () => void;
+    wide?: boolean; // ocupa a linha inteira no celular
 }
 
 type ReminderItem = NonNullable<ReturnType<typeof useReminders>>[number];
 
-const StatCard = ({ title, value, trend, icon: Icon, color, onClick }: StatCardProps) => (
+const StatCard = ({ title, value, trend, icon: Icon, color, onClick, wide }: StatCardProps) => (
     <div
         onClick={onClick}
-        className={`glass-card p-6 relative overflow-hidden group transition-all duration-300 ${onClick ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]' : ''}`}
+        className={`glass-card p-3 sm:p-6 relative overflow-hidden group transition-all duration-300 ${wide ? 'col-span-2 md:col-span-1' : ''} ${onClick ? 'cursor-pointer hover:shadow-2xl hover:-translate-y-1 active:scale-[0.98]' : ''}`}
     >
-        <div className={`absolute top-0 right-0 p-4 opacity-10 dark:opacity-5 group-hover:opacity-20 transition-opacity ${color}`}>
+        {/* Ícone grande decorativo: só em telas maiores (no celular só ocupa espaço) */}
+        <div className={`hidden sm:block absolute top-0 right-0 p-4 opacity-10 dark:opacity-5 group-hover:opacity-20 transition-opacity ${color}`}>
             <Icon size={64} />
         </div>
         <div className="relative z-10">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${color} bg-opacity-10 text-white shadow-sm`}>
-                <Icon size={24} className="text-current" />
+            <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center mb-2 sm:mb-4 ${color} bg-opacity-10 text-white shadow-sm`}>
+                <Icon size={18} className="text-current sm:w-6 sm:h-6" />
             </div>
-            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{title}</p>
-            <h3 className="text-3xl font-bold text-slate-800 dark:text-white mt-1">{value}</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">{title}</p>
+            <h3 className="text-xl sm:text-3xl font-bold text-slate-800 dark:text-white mt-0.5 sm:mt-1 truncate">{value}</h3>
             {trend && (
-                <div className="flex items-center gap-1 mt-2 text-sm text-green-600 dark:text-green-400 font-medium">
-                    <ArrowUpRight size={16} />
+                <div className="flex items-center gap-1 mt-1 sm:mt-2 text-xs sm:text-sm text-green-600 dark:text-green-400 font-medium">
+                    <ArrowUpRight size={14} />
                     <span>{trend}</span>
-                    <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">vs mês passado</span>
+                    <span className="hidden sm:inline text-slate-400 dark:text-slate-500 font-normal ml-1">vs mês passado</span>
                 </div>
             )}
         </div>
@@ -139,7 +141,7 @@ export function Dashboard() {
     return (
         <div className="space-y-6 animate-fade-in text-base pb-10">
             {/* Top Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
                 <StatCard
                     title="Serviços Realizados"
                     value={stats.servicesCount || 0}
@@ -170,6 +172,7 @@ export function Dashboard() {
                     onClick={() => navigate('/helpers')}
                 />
                 <StatCard
+                    wide
                     title="Receita Estimada"
                     value={`R$ ${(stats.currentRevenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                     trend={revenueTrend}
@@ -212,7 +215,7 @@ export function Dashboard() {
                                         <button
                                             key={opt.value}
                                             onClick={() => setMaintenanceWindow(opt.value)}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all
+                                            className={`px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all
                                                 ${maintenanceWindow === opt.value
                                                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
                                                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}
@@ -377,7 +380,7 @@ export function Dashboard() {
                                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{service.type} • {formatLocalDate(service.date)}</p>
                                             </div>
                                             <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                                R$ {(Number(service.price) || 0).toFixed(2)}
+                                                {formatCurrency((Number(service.price) || 0))}
                                             </div>
                                         </div>
                                     ))

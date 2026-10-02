@@ -5,7 +5,7 @@ import { addHelper, deleteHelper, addHelperEntry, deleteHelperEntry, updateHelpe
 import { useHelpers } from '../hooks/useData';
 import { Users, DollarSign, Plus, Trash2, Briefcase, X, Calendar, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { parseLocalDate, getYearMonth, parseMonetaryValue } from '../utils/dateUtils';
+import { parseLocalDate, getYearMonth, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 import type { HelperEntry } from '../types';
 
 export function Helpers() {
@@ -208,47 +208,47 @@ export function Helpers() {
                         <div className="animate-fade-in space-y-6">
 
                             {/* Month Filter */}
-                            <div className="flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl w-full sm:w-fit shadow-sm">
-                                <Calendar size={18} className="text-slate-500" />
-                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mês de Referência:</span>
+                            <div className="flex items-center gap-2 sm:gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 sm:p-4 rounded-2xl w-full sm:w-fit shadow-sm">
+                                <Calendar size={18} className="text-slate-500 shrink-0" />
+                                <span className="hidden sm:inline text-sm font-semibold text-slate-700 dark:text-slate-300">Mês de Referência:</span>
                                 <input
                                     type="month"
                                     value={referenceMonth}
                                     onChange={(e) => setReferenceMonth(e.target.value)}
-                                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium text-sm"
+                                    className="flex-1 sm:flex-none min-w-0 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-medium text-sm"
                                 />
                                 {referenceMonth && (
                                     <button
                                         onClick={() => setReferenceMonth('')}
-                                        className="text-[10px] text-slate-400 hover:text-red-500 font-bold uppercase ml-2 transition-colors"
+                                        className="shrink-0 px-2 py-2 text-[10px] text-slate-400 hover:text-red-500 font-bold uppercase transition-colors"
                                     >
                                         Limpar
                                     </button>
                                 )}
                             </div>
                             {/* Summary Cards */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div className="glass-panel p-6 border-l-4 border-l-blue-500">
-                                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
-                                        <Briefcase size={18} />
-                                        <span className="text-xs font-bold uppercase tracking-wider">Total Trabalhado</span>
+                            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                                <div className="glass-panel p-3 sm:p-6 border-l-4 border-l-blue-500 min-w-0">
+                                    <div className="flex items-center gap-1.5 sm:gap-3 text-slate-500 dark:text-slate-400 mb-1 sm:mb-2">
+                                        <Briefcase size={16} className="hidden sm:block" />
+                                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Trabalhado</span>
                                     </div>
-                                    <p className="text-2xl font-black text-slate-800 dark:text-white">R$ {(Number(totalWork) || 0).toFixed(2)}</p>
+                                    <p className="text-sm sm:text-2xl font-black text-slate-800 dark:text-white truncate">{formatCurrency((Number(totalWork) || 0))}</p>
                                 </div>
-                                <div className="glass-panel p-6 border-l-4 border-l-emerald-500">
-                                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
-                                        <DollarSign size={18} />
-                                        <span className="text-xs font-bold uppercase tracking-wider">Total Pago</span>
+                                <div className="glass-panel p-3 sm:p-6 border-l-4 border-l-emerald-500 min-w-0">
+                                    <div className="flex items-center gap-1.5 sm:gap-3 text-slate-500 dark:text-slate-400 mb-1 sm:mb-2">
+                                        <DollarSign size={16} className="hidden sm:block" />
+                                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">Pago</span>
                                     </div>
-                                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">R$ {(Number(totalPaid) || 0).toFixed(2)}</p>
+                                    <p className="text-sm sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 truncate">{formatCurrency((Number(totalPaid) || 0))}</p>
                                 </div>
-                                <div className={`glass-panel p-6 border-l-4 ${balance > 0 ? 'border-l-red-500' : 'border-l-slate-400'}`}>
-                                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 mb-2">
+                                <div className={`glass-panel p-3 sm:p-6 border-l-4 min-w-0 ${balance > 0 ? 'border-l-red-500' : 'border-l-slate-400'}`}>
+                                    <div className="flex items-center gap-1.5 sm:gap-3 text-slate-500 dark:text-slate-400 mb-1 sm:mb-2">
                                         <Users size={18} />
-                                        <span className="text-xs font-bold uppercase tracking-wider">Saldo Devedor</span>
+                                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">A pagar</span>
                                     </div>
-                                    <p className={`text-2xl font-black ${balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}>
-                                        R$ {(Number(balance) || 0).toFixed(2)}
+                                    <p className={`text-sm sm:text-2xl font-black truncate ${balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'}`}>
+                                        {formatCurrency((Number(balance) || 0))}
                                     </p>
                                 </div>
                             </div>
@@ -273,7 +273,7 @@ export function Helpers() {
                                     }}
                                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all active:scale-95"
                                 >
-                                    <DollarSign size={18} />
+                                    <DollarSign size={16} className="hidden sm:block" />
                                     Lançar Pagamento
                                 </button>
                             </div>
@@ -315,21 +315,21 @@ export function Helpers() {
                                                         </td>
                                                         <td className="px-6 py-4 text-right">
                                                             <span className={`text-sm font-bold ${entry.type === 'work' ? 'text-slate-700 dark:text-slate-300' : 'text-emerald-600'}`}>
-                                                                {entry.type === 'payment' && '- '}R$ {(parseMonetaryValue(entry.amount)).toFixed(2)}
+                                                                {entry.type === 'payment' && '- '}{formatCurrency((parseMonetaryValue(entry.amount)))}
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4 text-right no-print">
                                                             <div className="flex items-center justify-end gap-2">
                                                                 <button
                                                                     onClick={() => openEditModal(entry)}
-                                                                    className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                                                                    className="p-2.5 text-slate-400 hover:text-blue-500 transition-colors"
                                                                     title="Editar Lançamento"
                                                                 >
                                                                     <Edit2 size={14} />
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDeleteEntry(entry.id!)}
-                                                                    className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                                                                    className="p-2.5 text-slate-400 hover:text-red-500 transition-colors"
                                                                     title="Excluir Lançamento"
                                                                 >
                                                                     <Trash2 size={14} />

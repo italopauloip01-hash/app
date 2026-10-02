@@ -9,7 +9,7 @@ import { generatePixPayload } from '../utils/PixUtils';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { applyPrintColors } from '../utils/pdfUtils';
-import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 
 interface DebtStatementModalProps {
     isOpen: boolean;
@@ -126,11 +126,11 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
     const handleShare = () => {
         let text = `*EXTRATO DE DÉBITOS - ${companyName.toUpperCase()}*\n\n` +
             `*Cliente:* ${client.name}\n` +
-            `*Valor Total em Aberto:* R$ ${(Number(totalDebt) || 0).toFixed(2)}\n\n` +
+            `*Valor Total em Aberto:* ${formatCurrency((Number(totalDebt) || 0))}\n\n` +
             `*SERVIÇOS PENDENTES:*\n`;
 
         sortedPendingServices.forEach((service, index) => {
-            text += `${index + 1}. ${formatLocalDate(service.date)} - ${service.type}${service.description ? ' - ' + service.description : ''} (R$ ${getServicePrice(service).toFixed(2)})\n`;
+            text += `${index + 1}. ${formatLocalDate(service.date)} - ${service.type}${service.description ? ' - ' + service.description : ''} (${formatCurrency(getServicePrice(service))})\n`;
         });
 
         if (pixData && totalDebt > 0) {
@@ -175,7 +175,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                         As cobranças de <strong>{client.name}</strong> foram formatadas em alta qualidade.
                     </p>
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 ${totalDebt > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'} text-xs font-bold rounded-full mb-4`}>
-                        <span>R$ {(Number(totalDebt) || 0).toFixed(2)} a receber</span>
+                        <span>{formatCurrency((Number(totalDebt) || 0))} a receber</span>
                     </div>
                 </div>
 
@@ -247,7 +247,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                                         <div className="flex-1 font-bold text-slate-800 uppercase text-[11px] tracking-wider">
                                             Serviço Realizado
                                         </div>
-                                        <div className="w-32 text-right font-black text-slate-900">R$ {getServicePrice(service).toFixed(2)}</div>
+                                        <div className="w-32 text-right font-black text-slate-900">{formatCurrency(getServicePrice(service))}</div>
                                     </div>
 
                                     {/* Detailed Items for this service */}
@@ -259,10 +259,10 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                                                 return (
                                                     <div key={idx} className="flex justify-between text-[11px] text-slate-500 border-l border-slate-200 pl-3 py-0.5">
                                                         <div className="flex-1 text-slate-700">
-                                                            <span className="font-bold">{quantity}x {item.type}{quantity > 1 ? ` (R$ ${price.toFixed(2)}/un)` : ''}</span>
+                                                            <span className="font-bold">{quantity}x {item.type}{quantity > 1 ? ` (${formatCurrency(price)}/un)` : ''}</span>
                                                             {item.description && <span className="text-slate-500 ml-1">- {item.description}</span>}
                                                         </div>
-                                                        <div className="w-24 text-right">R$ {(price * quantity).toFixed(2)}</div>
+                                                        <div className="w-24 text-right">{formatCurrency((price * quantity))}</div>
                                                     </div>
                                                 );
                                             })
@@ -272,7 +272,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                                                     <span className="font-bold">1x {service.type}</span>
                                                     {service.description && <span className="text-slate-500 ml-1">- {service.description}</span>}
                                                 </div>
-                                                <div className="w-24 text-right">R$ {getServicePrice(service).toFixed(2)}</div>
+                                                <div className="w-24 text-right">{formatCurrency(getServicePrice(service))}</div>
                                             </div>
                                         )}
                                     </div>
@@ -289,7 +289,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                             <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                                 VALOR TOTAL EM ABERTO:
                             </span>
-                            <span className="text-[32px] font-black text-[#dc2626]">R$ {(Number(totalDebt) || 0).toFixed(2)}</span>
+                            <span className="text-[32px] font-black text-[#dc2626]">{formatCurrency((Number(totalDebt) || 0))}</span>
                         </div>
                     </div>
 

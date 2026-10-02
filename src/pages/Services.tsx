@@ -11,7 +11,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { formatLocalDate, getYearMonth, getMonthName, getYearFromYearMonth, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
+import { formatLocalDate, getYearMonth, getMonthName, getYearFromYearMonth, getServicePrice, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 
 type DetailedService = NonNullable<ReturnType<typeof useDetailedServices>>[number];
 
@@ -205,34 +205,34 @@ export function Services() {
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
-                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 border border-blue-400 dark:border-blue-500/50 shadow-lg rounded-2xl p-3 sm:p-4 text-white flex items-center gap-3 sm:gap-4">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 border border-blue-400 dark:border-blue-500/50 shadow-lg rounded-2xl p-2.5 sm:p-4 text-white flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="hidden sm:flex w-12 h-12 rounded-xl bg-white/20 items-center justify-center flex-shrink-0">
                                     <DollarSign size={20} className="sm:w-6 sm:h-6" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-blue-50 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Faturamento</p>
-                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {(Number(monthlyRevenue) || 0).toFixed(2)}</h3>
+                                    <h3 className="text-sm sm:text-xl font-black truncate drop-shadow-md">{formatCurrency(monthlyRevenue)}</h3>
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-red-500 to-red-600 border border-red-400 dark:border-red-500/50 shadow-lg rounded-2xl p-3 sm:p-4 text-white flex items-center gap-3 sm:gap-4">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <div className="bg-gradient-to-br from-red-500 to-red-600 border border-red-400 dark:border-red-500/50 shadow-lg rounded-2xl p-2.5 sm:p-4 text-white flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="hidden sm:flex w-12 h-12 rounded-xl bg-white/20 items-center justify-center flex-shrink-0">
                                     <Users size={20} className="sm:w-6 sm:h-6" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-red-50 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Custos</p>
-                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {(Number(monthlyHelperCost) || 0).toFixed(2)}</h3>
+                                    <h3 className="text-sm sm:text-xl font-black truncate drop-shadow-md">{formatCurrency(monthlyHelperCost)}</h3>
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 border border-emerald-400 dark:border-emerald-500/50 shadow-lg rounded-2xl p-3 sm:p-4 text-white flex items-center gap-3 sm:gap-4">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 border border-emerald-400 dark:border-emerald-500/50 shadow-lg rounded-2xl p-2.5 sm:p-4 text-white flex items-center gap-3 sm:gap-4 min-w-0">
+                                <div className="hidden sm:flex w-12 h-12 rounded-xl bg-white/20 items-center justify-center flex-shrink-0">
                                     <TrendingUp size={20} className="sm:w-6 sm:h-6" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-emerald-50 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Lucro Real</p>
-                                    <h3 className="text-lg sm:text-xl font-black truncate drop-shadow-md">R$ {(Number(netProfit) || 0).toFixed(2)}</h3>
+                                    <h3 className="text-sm sm:text-xl font-black truncate drop-shadow-md">{formatCurrency(netProfit)}</h3>
                                 </div>
                             </div>
                         </div>
@@ -291,10 +291,10 @@ export function Services() {
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800/50 min-w-0">
+                                        <div className="flex flex-row items-center justify-between gap-3 sm:gap-4 w-full sm:w-auto mt-1 sm:mt-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800/50 min-w-0">
                                             <div className="text-left sm:text-right flex flex-col sm:items-end gap-0.5 min-w-0 flex-shrink">
                                                 <p className={`font-bold tracking-tight text-[13px] sm:text-base truncate ${service.status === 'Cancelado' ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-white'}`}>
-                                                    R$ {getServicePrice(service).toFixed(2)}
+                                                    {formatCurrency(getServicePrice(service))}
                                                 </p>
                                                 <div className="flex items-center gap-2">
                                                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider
@@ -317,7 +317,7 @@ export function Services() {
                                                 {service.paymentStatus === 'Pendente' && (
                                                     <button
                                                         onClick={(e) => handleTogglePayment(e, service)}
-                                                        className="p-1.5 sm:p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-800/50 shadow-sm"
+                                                        className="p-2.5 sm:p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-800/50 shadow-sm"
                                                         title="Marcar como Pago"
                                                     >
                                                         <DollarSign size={15} className="sm:w-[16px]" />
@@ -328,14 +328,14 @@ export function Services() {
                                                         e.stopPropagation();
                                                         navigate(`/services/${service.id}/edit`);
                                                     }}
-                                                    className="p-1.5 sm:p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700 shadow-sm"
+                                                    className="p-2.5 sm:p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700 shadow-sm"
                                                     title="Editar Serviço"
                                                 >
                                                     <Pencil size={15} className="sm:w-[16px]" />
                                                 </button>
                                                 <button
                                                     onClick={(e) => handleDeleteService(e, service.id!)}
-                                                    className="p-1.5 sm:p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50 shadow-sm"
+                                                    className="p-2.5 sm:p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-900/50 shadow-sm"
                                                     title="Apagar Serviço"
                                                 >
                                                     <Trash2 size={15} className="sm:w-[16px]" />
@@ -354,7 +354,7 @@ export function Services() {
 
             {payingService && (
                 <PaymentMethodPicker
-                    subtitle={`${payingService.clientName} · R$ ${getServicePrice(payingService).toFixed(2)}`}
+                    subtitle={`${payingService.clientName} · ${formatCurrency(getServicePrice(payingService))}`}
                     onSelect={confirmPayment}
                     onClose={() => setPayingService(null)}
                 />

@@ -8,7 +8,7 @@ import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { applyPrintColors } from '../utils/pdfUtils';
-import { getServicePrice } from '../utils/dateUtils';
+import { getServicePrice, formatCurrency } from '../utils/dateUtils';
 
 interface GlobalDebtStatementModalProps {
     isOpen: boolean;
@@ -122,11 +122,11 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
         debtors.forEach((d, index) => {
             text += `${index + 1}. *${d.client.name}*\n`;
-            text += `   Dívida: R$ ${(Number(d.debt) || 0).toFixed(2)} (${d.serviceCount} serviços)\n`;
+            text += `   Dívida: ${formatCurrency((Number(d.debt) || 0))} (${d.serviceCount} serviços)\n`;
             text += `   Contato: ${d.client.phone}\n\n`;
         });
 
-        text += `*TOTAL GERAL A RECEBER: R$ ${(Number(totalGlobalDebt) || 0).toFixed(2)}*\n\n`;
+        text += `*TOTAL GERAL A RECEBER: ${formatCurrency((Number(totalGlobalDebt) || 0))}*\n\n`;
         text += `Segue em anexo o relatório detalhado em imagem.`;
 
         const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -161,7 +161,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                         Foi compilado um extrato geral <strong>({debtors.length} clientes com débito)</strong> em qualidade premium.
                     </p>
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-700 text-xs font-bold rounded-full mb-4">
-                        <span>Total Global: R$ {(Number(totalGlobalDebt) || 0).toFixed(2)}</span>
+                        <span>Total Global: {formatCurrency((Number(totalGlobalDebt) || 0))}</span>
                     </div>
                 </div>
 
@@ -198,7 +198,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                         </div>
                         <div className="text-right">
                             <span className="font-bold text-red-600 uppercase tracking-wider text-[11px] block">TOTAL A RECEBER:</span>
-                            <span className="text-[32px] font-black text-[#dc2626] leading-none block">R$ {(Number(totalGlobalDebt) || 0).toFixed(2)}</span>
+                            <span className="text-[32px] font-black text-[#dc2626] leading-none block">{formatCurrency((Number(totalGlobalDebt) || 0))}</span>
                         </div>
                     </div>
 
@@ -228,7 +228,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                                         {d.serviceCount}x
                                     </div>
                                     <div className="w-32 text-right font-black text-slate-900">
-                                        R$ {(Number(d.debt) || 0).toFixed(2)}
+                                        {formatCurrency((Number(d.debt) || 0))}
                                     </div>
                                 </div>
                             ))}

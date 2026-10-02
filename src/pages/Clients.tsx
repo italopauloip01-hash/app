@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2 } from 'lucide-react';
+import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2, Pencil } from 'lucide-react';
 import { useClients, useServices, useCompanyName } from '../hooks/useData';
 import { deleteClient, deleteService } from '../lib/supabaseOperations';
 import { ClientForm } from '../components/ClientForm';
@@ -9,7 +9,7 @@ import { EstimateModal } from '../components/EstimateModal';
 import { useNavigate } from 'react-router-dom';
 import type { Client, Service } from '../types';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatSimpleDate, getServicePrice } from '../utils/dateUtils';
+import { formatSimpleDate, getServicePrice, formatCurrency } from '../utils/dateUtils';
 
 export function Clients() {
     const clients = useClients();
@@ -89,10 +89,10 @@ export function Clients() {
         message += `Passando para lembrar dos seguintes serviços pendentes:\n\n`;
 
         pendingServices.forEach(s => {
-            message += `• ${formatSimpleDate(s.date)} - ${s.type}: *R$ ${getServicePrice(s).toFixed(2)}*\n`;
+            message += `• ${formatSimpleDate(s.date)} - ${s.type}: *${formatCurrency(getServicePrice(s))}*\n`;
         });
 
-        message += `\n*Total em Aberto: R$ ${(Number(totalDebt) || 0).toFixed(2)}*\n\n`;
+        message += `\n*Total em Aberto: ${formatCurrency((Number(totalDebt) || 0))}*\n\n`;
         message += `Ficamos no aguardo. Obrigado pelo contato!`;
 
         const encodedMessage = encodeURIComponent(message);
@@ -154,7 +154,7 @@ export function Clients() {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-red-50 text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Total de Débitos Pendentes (Geral)</p>
-                        <h3 className="text-2xl font-black truncate drop-shadow-md">R$ {(Number(totalGlobalDebt) || 0).toFixed(2)}</h3>
+                        <h3 className="text-2xl font-black truncate drop-shadow-md">{formatCurrency((Number(totalGlobalDebt) || 0))}</h3>
                     </div>
                     <button
                         onClick={() => setIsGlobalStatementOpen(true)}
@@ -181,7 +181,7 @@ export function Clients() {
                         <div
                             key={client.id}
                             onClick={() => navigate(`/clients/${client.id}`)}
-                            className="glass-card p-6 flex flex-col gap-4 cursor-pointer group border border-transparent hover:border-blue-200"
+                            className="glass-card p-4 sm:p-6 flex flex-col gap-3 sm:gap-4 cursor-pointer group border border-transparent hover:border-blue-200"
                         >
                             <div className="flex items-start justify-between">
                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md group-hover:scale-110 transition-transform">
@@ -190,22 +190,21 @@ export function Clients() {
                                 <div className="flex items-center gap-1">
                                     <button
                                         onClick={(e) => handleOpenEstimate(e, client)}
-                                        className="text-slate-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-colors"
+                                        className="text-slate-400 hover:text-blue-600 p-2.5 hover:bg-blue-50 rounded-full transition-colors"
                                         title="Gerar Orçamento"
                                     >
                                         <FileText size={18} />
                                     </button>
                                     <button
                                         onClick={(e) => handleEdit(e, client)}
-                                        className="text-slate-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-full transition-colors"
+                                        className="text-slate-400 hover:text-blue-600 p-2.5 hover:bg-blue-50 rounded-full transition-colors"
                                         title="Editar Cliente"
                                     >
-                                        <span className="sr-only">Editar</span>
-                                        <div className="w-6 h-6 flex items-center justify-center font-bold pb-2">...</div>
+                                        <Pencil size={18} />
                                     </button>
                                     <button
                                         onClick={(e) => handleDelete(e, client)}
-                                        className="text-slate-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-full transition-colors"
+                                        className="text-slate-400 hover:text-red-600 p-2.5 hover:bg-red-50 rounded-full transition-colors"
                                         title="Apagar Cliente"
                                     >
                                         <Trash2 size={18} />
@@ -224,12 +223,12 @@ export function Clients() {
                                     <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between bg-red-50 dark:bg-red-900/20 p-2 rounded-xl border border-red-100 dark:border-red-900/20 gap-2 sm:gap-0">
                                         <div className="flex items-center gap-2 text-red-600 dark:text-red-400 truncate">
                                             <AlertCircle size={14} className="flex-shrink-0" />
-                                            <span className="text-xs font-black uppercase tracking-tight truncate">DÉBITO: R$ {(Number(clientDebts.get(client.id!)) || 0).toFixed(2)}</span>
+                                            <span className="text-xs font-black uppercase tracking-tight truncate">DÉBITO: {formatCurrency((Number(clientDebts.get(client.id!)) || 0))}</span>
                                         </div>
                                         <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                             <button
                                                 onClick={(e) => handleOpenStatement(e, client)}
-                                                className="flex-1 sm:flex-none p-1.5 justify-center bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5 text-[10px] font-bold"
+                                                className="flex-1 sm:flex-none px-2 py-2.5 sm:p-1.5 justify-center bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5 text-[10px] font-bold"
                                                 title="Gerar PDF de Débitos"
                                             >
                                                 <FileText size={12} />
@@ -237,7 +236,7 @@ export function Clients() {
                                             </button>
                                             <button
                                                 onClick={(e) => handleSendCharge(e, client, clientDebts.get(client.id!)!)}
-                                                className="flex-1 sm:flex-none p-1.5 justify-center bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all active:scale-95 shadow-sm flex items-center gap-1.5 text-[10px] font-bold"
+                                                className="flex-1 sm:flex-none px-2 py-2.5 sm:p-1.5 justify-center bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all active:scale-95 shadow-sm flex items-center gap-1.5 text-[10px] font-bold"
                                                 title="Enviar Cobrança via WhatsApp"
                                             >
                                                 <Send size={12} />

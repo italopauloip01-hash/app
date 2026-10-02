@@ -1,3 +1,4 @@
+import { formatCurrency } from '../utils/dateUtils';
 import { useState } from 'react';
 import { Plus, Trash2, Edit2, Check, Tag, DollarSign, FileText, Clock } from 'lucide-react';
 import { formatDuration, itemDuration } from '../utils/schedule';
@@ -152,7 +153,7 @@ export function ServiceTemplatesManager() {
                             <h3 className="font-semibold text-slate-800 dark:text-white">{template.name}</h3>
                             <p className="text-sm text-slate-500 mt-1 line-clamp-2">{template.description || 'Sem descrição.'}</p>
                             <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-xs font-bold border border-green-100 dark:border-green-900/50">
-                                R$ {(Number(template.price) || 0).toFixed(2)}
+                                {formatCurrency((Number(template.price) || 0))}
                             </div>
                             <div className="mt-2 ml-2 inline-flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-md text-xs font-bold border border-blue-100 dark:border-blue-900/50">
                                 <Clock size={12} />

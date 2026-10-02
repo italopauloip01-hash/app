@@ -7,7 +7,7 @@ import { useServiceTemplates, useSettings } from '../hooks/useData';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, dayBlocks, estimateDuration, findConflicts, formatDuration, fromMinutes, suggestSlots, toMinutes } from '../utils/schedule';
 import { ArrowLeft, Camera, Calendar, Save, DollarSign, ChevronDown, UserPlus, Plus, Trash2, Loader2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { ClientForm } from '../components/ClientForm';
-import { parseLocalDate, parseMonetaryValue } from '../utils/dateUtils';
+import { parseLocalDate, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 import { format } from 'date-fns';
 import { compressImage } from '../utils/imageUtils';
 import type { Service, ServiceItem } from '../types';
@@ -305,7 +305,7 @@ export function NewService() {
                                     required
                                     value={clientId}
                                     onChange={(e) => setClientId(e.target.value)}
-                                    className="flex-1 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                                    className="flex-1 min-w-0 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                                 >
                                     <option value="">Selecione um cliente...</option>
                                     {clients?.map(client => (
@@ -316,7 +316,7 @@ export function NewService() {
                                     type="button"
                                     onClick={() => setIsClientFormOpen(true)}
                                     title="Novo Cliente"
-                                    className="p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-100 dark:border-blue-800 transition-colors"
+                                    className="shrink-0 p-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-100 dark:border-blue-800 transition-colors"
                                 >
                                     <UserPlus size={20} />
                                 </button>
@@ -357,7 +357,7 @@ export function NewService() {
                                 onChange={(e) => setDurationOverride(e.target.value ? Number(e.target.value) : null)}
                                 className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                             >
-                                <option value="">Automática ({formatDuration(estimatedDuration)})</option>
+                                <option value="">Auto ({formatDuration(estimatedDuration)})</option>
                                 {[30, 45, 60, 90, 120, 150, 180, 240, 300, 360, 480, 600].map(m => (
                                     <option key={m} value={m}>{formatDuration(m)}</option>
                                 ))}
@@ -408,7 +408,7 @@ export function NewService() {
                                         key={slot}
                                         type="button"
                                         onClick={() => setStartTime(slot)}
-                                        className={`px-2 py-1 rounded-lg text-xs font-bold border transition-colors
+                                        className={`px-3 py-2 rounded-lg text-xs font-bold border transition-colors
                                             ${slot === startTime
                                                 ? 'bg-emerald-600 text-white border-emerald-600'
                                                 : 'bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'}`}
@@ -556,7 +556,7 @@ export function NewService() {
 
                                 <div className="pt-2 flex justify-end border-t border-slate-100 dark:border-slate-800/50">
                                     <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                                        Subtotal: <span className="text-blue-600 dark:text-blue-400">R$ {(item.price * (Number(item.quantity) || 1)).toFixed(2)}</span>
+                                        Subtotal: <span className="text-blue-600 dark:text-blue-400">{formatCurrency((item.price * (Number(item.quantity) || 1)))}</span>
                                     </p>
                                 </div>
                             </div>
@@ -565,7 +565,7 @@ export function NewService() {
 
                     <div className="pt-4 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-800">
                         <span className="text-xs font-black text-blue-900 dark:text-blue-300 uppercase tracking-widest">Total do Serviço</span>
-                        <span className="text-2xl font-black text-blue-600 dark:text-blue-400">R$ {calculateTotal().toFixed(2)}</span>
+                        <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatCurrency(calculateTotal())}</span>
                     </div>
                 </div>
 

@@ -3,7 +3,7 @@ import { FileText, Plus, Search, Trash2, Calendar, User, ArrowRight } from 'luci
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { deleteEstimate } from '../lib/supabaseOperations';
-import { formatSimpleDate } from '../utils/dateUtils';
+import { formatSimpleDate, formatCurrency } from '../utils/dateUtils';
 import { EstimateModal } from '../components/EstimateModal';
 import type { Estimate } from '../types';
 
@@ -110,7 +110,7 @@ export function Estimates() {
                                 <div className="py-2 border-y border-slate-100 dark:border-slate-800">
                                     <div className="flex justify-between items-center text-xs">
                                         <span className="text-slate-500">{estimate.items.length} {estimate.items.length === 1 ? 'item' : 'itens'}</span>
-                                        <span className="font-black text-slate-800 dark:text-white">R$ {(Number(estimate.total) || 0).toFixed(2)}</span>
+                                        <span className="font-black text-slate-800 dark:text-white">{formatCurrency((Number(estimate.total) || 0))}</span>
                                     </div>
                                 </div>
                             </div>

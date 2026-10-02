@@ -8,7 +8,6 @@ import {
     Settings,
     Menu,
     X,
-    Bell,
     LogOut,
     FileText,
     CalendarDays,
@@ -17,6 +16,7 @@ import {
 import { useState, useEffect } from 'react';
 import { syncDatabase, onSyncStateChange, subscribeToRealtime } from '../lib/supabaseOperations';
 import { OfflineIndicator } from './OfflineIndicator';
+import { BottomNav } from './BottomNav';
 import { APP_VERSION } from '../version';
 import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
@@ -34,6 +34,21 @@ const NavItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon:
         <span className="font-medium">{label}</span>
     </Link>
 );
+
+function pageTitle(path: string): string {
+    if (path === '/services/new') return 'Novo serviço';
+    if (path.endsWith('/edit')) return 'Editar serviço';
+    if (path.startsWith('/clients/')) return 'Cliente';
+    const titles: Record<string, string> = {
+        '/settings': 'Configurações',
+        '/clients': 'Clientes',
+        '/services': 'Serviços',
+        '/helpers': 'Ajudantes',
+        '/estimates': 'Orçamentos',
+        '/agenda': 'Agenda',
+    };
+    return titles[path] ?? 'Visão Geral';
+}
 
 export function Layout() {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -160,19 +175,15 @@ export function Layout() {
 
                     <div className="flex items-center gap-2 lg:ml-0 ml-2 truncate">
                         <h2 className="text-lg font-semibold text-slate-800 dark:text-white truncate">
-                            {location.pathname === '/settings' ? 'Configurações' :
-                                location.pathname === '/clients' ? 'Clientes' :
-                                    location.pathname === '/services' ? 'Serviços' :
-                                        location.pathname === '/helpers' ? 'Ajudantes' :
-                                            location.pathname === '/estimates' ? 'Orçamentos' :
-                                                location.pathname === '/agenda' ? 'Agenda' : 'Visão Geral'}
+                            {pageTitle(location.pathname)}
+
                         </h2>
-                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
+                        <span className="hidden sm:inline text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50">
                             v{APP_VERSION}
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                         {/* Sync Indicator */}
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/50">
                             {isSyncing ? (
@@ -193,23 +204,20 @@ export function Layout() {
                             )}
                         </div>
 
-                        <button
-                            onClick={() => alert('Você não possui novas notificações no momento.')}
-                            className="p-2 relative rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-                        >
-                            <Bell size={20} />
-                        </button>
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-slate-900 shadow-md">
+                        <div className="hidden sm:flex w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 items-center justify-center text-white text-xs font-bold ring-2 ring-white dark:ring-slate-900 shadow-md">
                             {user?.email?.charAt(0).toUpperCase() || 'U'}
                         </div>
                     </div>
                 </header>
 
                 {/* Page Content */}
-                <div className="p-2 sm:p-4 lg:p-8 pb-32 lg:pb-40 space-y-6 max-w-full min-w-0">
+                {/* pb grande no celular: espaço para a barra de navegação de baixo */}
+                <div className="p-2 sm:p-4 lg:p-8 pb-28 lg:pb-40 space-y-6 max-w-full min-w-0">
                     <Outlet />
                 </div>
             </main>
+
+            <BottomNav />
         </div>
     );
 }

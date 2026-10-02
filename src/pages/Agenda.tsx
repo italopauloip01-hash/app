@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, Plus, User, MapPin, Wallet } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -31,6 +31,15 @@ export function Agenda() {
     const settings = useSettings();
     const [month, setMonth] = useState(() => startOfMonth(new Date()));
     const [selected, setSelected] = useState(() => new Date());
+    const dayPanelRef = useRef<HTMLDivElement>(null);
+
+    // No celular o resumo do dia fica abaixo do calendário: desce até ele ao tocar num dia
+    const selectDay = (day: Date) => {
+        setSelected(day);
+        if (window.innerWidth < 1024) {
+            requestAnimationFrame(() => dayPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
+    };
 
     const workStart = settings?.workStart || DEFAULT_WORK_START;
     const workEnd = settings?.workEnd || DEFAULT_WORK_END;
@@ -124,7 +133,7 @@ export function Agenda() {
                             return (
                                 <button
                                     key={key}
-                                    onClick={() => setSelected(day)}
+                                    onClick={() => selectDay(day)}
                                     className={`relative flex flex-col items-center justify-start gap-1 rounded-xl py-2 min-h-[60px] transition-all
                                         ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}
                                         ${!inMonth && !isSelected ? 'opacity-35' : ''}`}
@@ -154,7 +163,7 @@ export function Agenda() {
                 </div>
 
                 {/* Dia selecionado */}
-                <div className="lg:col-span-2 glass-panel p-4 space-y-4">
+                <div ref={dayPanelRef} className="lg:col-span-2 glass-panel p-4 space-y-4 scroll-mt-24">
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <h3 className="font-bold text-slate-800 dark:text-white notranslate">
@@ -244,7 +253,7 @@ export function Agenda() {
                                     <button
                                         key={r.start}
                                         onClick={() => schedule(fromMinutes(r.start))}
-                                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                                        className="px-3 py-2 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
                                         title="Agendar neste horário"
                                     >
                                         {fromMinutes(r.start)} – {fromMinutes(r.end)} ({formatDuration(r.end - r.start)})

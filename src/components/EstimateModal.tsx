@@ -8,7 +8,7 @@ import { ptBR } from 'date-fns/locale';
 import { useSettings, useClients, useServiceTemplates, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { addEstimate, updateEstimate } from '../lib/supabaseOperations';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
-import { formatLocalDate, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 import { generateUUID } from '../utils/uuid';
 
 import { Share } from '@capacitor/share';
@@ -124,16 +124,16 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
             `*Cliente:* ${clientInfo.name}\n` +
             `*Data:* ${formatLocalDate(date)}\n` +
             `*Validade:* ${validityDays} dias\n` +
-            `*Valor Total:* R$ ${(Number(totalValue) || 0).toFixed(2)}\n\n` +
+            `*Valor Total:* ${formatCurrency((Number(totalValue) || 0))}\n\n` +
             `*ITENS DO ORÇAMENTO:*\n`;
 
         items.forEach(item => {
             const qty = Number(item.quantity) || 1;
             const price = parseMonetaryValue(item.price);
             if (qty > 1) {
-                text += `- ${qty}x ${item.type} (R$ ${price.toFixed(2)}/un): R$ ${(price * qty).toFixed(2)}\n`;
+                text += `- ${qty}x ${item.type} (${formatCurrency(price)}/un): ${formatCurrency((price * qty))}\n`;
             } else {
-                text += `- ${qty}x ${item.type}: R$ ${(price * qty).toFixed(2)}\n`;
+                text += `- ${qty}x ${item.type}: ${formatCurrency((price * qty))}\n`;
             }
         });
 

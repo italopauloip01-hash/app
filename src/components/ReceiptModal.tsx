@@ -11,7 +11,7 @@ import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { applyPrintColors } from '../utils/pdfUtils';
-import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue } from '../utils/dateUtils';
+import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 
 interface ReceiptModalProps {
     isOpen: boolean;
@@ -34,7 +34,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
         let text = `*RECIBO DE SERVIÇO - ${companyName.toUpperCase()}*\n\n` +
             `*Cliente:* ${client.name}\n` +
             `*Data:* ${formatLocalDate(service.date)}\n` +
-            `*Valor:* R$ ${getServicePrice(service).toFixed(2)}\n` +
+            `*Valor:* ${formatCurrency(getServicePrice(service))}\n` +
             `*Status:* ${service.paymentStatus === 'Pago' ? 'PAGAMENTO OK (' + service.paymentMethod + ')' : 'PAGAMENTO PENDENTE'}\n\n` +
             `*DETALHES DO SERVIÇO:*\n`;
 
@@ -44,14 +44,14 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                 const quantity = Number(item.quantity) || 1;
 
                 if (quantity > 1) {
-                    text += `${index + 1}. ${quantity}x ${item.type} (R$ ${price.toFixed(2)}/un)${item.description ? ' - ' + item.description : ''} - R$ ${(price * quantity).toFixed(2)}\n`;
+                    text += `${index + 1}. ${quantity}x ${item.type} (${formatCurrency(price)}/un)${item.description ? ' - ' + item.description : ''} - ${formatCurrency((price * quantity))}\n`;
                 } else {
-                    text += `${index + 1}. ${quantity}x ${item.type}${item.description ? ' - ' + item.description : ''} - R$ ${(price * quantity).toFixed(2)}\n`;
+                    text += `${index + 1}. ${quantity}x ${item.type}${item.description ? ' - ' + item.description : ''} - ${formatCurrency((price * quantity))}\n`;
                 }
             });
         } else {
             const servicePrice = getServicePrice(service);
-            text += `1. 1x ${service.type}${service.description ? ' - ' + service.description : ''} - R$ ${servicePrice.toFixed(2)}\n`;
+            text += `1. 1x ${service.type}${service.description ? ' - ' + service.description : ''} - ${formatCurrency(servicePrice)}\n`;
         }
 
         if (service.paymentStatus === 'Pendente' && pixData) {
@@ -264,8 +264,8 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                                     <span className="font-bold">{item.type}</span>
                                                     {item.description && <span className="text-slate-500 ml-1">- {item.description}</span>}
                                                 </div>
-                                                <div className="w-32 text-right text-slate-500 font-medium">{quantity > 1 ? `R$ ${price.toFixed(2)}` : '-'}</div>
-                                                <div className="w-32 text-right font-bold text-slate-900">R$ {(price * quantity).toFixed(2)}</div>
+                                                <div className="w-32 text-right text-slate-500 font-medium">{quantity > 1 ? `${formatCurrency(price)}` : '-'}</div>
+                                                <div className="w-32 text-right font-bold text-slate-900">{formatCurrency((price * quantity))}</div>
                                             </div>
                                         );
                                     })
@@ -277,7 +277,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                             {service.description && <span className="text-slate-500 ml-1">- {service.description}</span>}
                                         </div>
                                         <div className="w-32 text-right font-medium text-slate-500">-</div>
-                                        <div className="w-32 text-right font-bold text-slate-900">R$ {getServicePrice(service).toFixed(2)}</div>
+                                        <div className="w-32 text-right font-bold text-slate-900">{formatCurrency(getServicePrice(service))}</div>
                                     </div>
                                 )}
                             </div>
@@ -287,7 +287,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                                 <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                                     {service.paymentStatus === 'Pago' ? 'VALOR TOTAL PAGO:' : 'VALOR TOTAL EM ABERTO:'}
                                 </span>
-                                <span className="text-[28px] font-black text-[#0f172a]">R$ {getServicePrice(service).toFixed(2)}</span>
+                                <span className="text-[28px] font-black text-[#0f172a]">{formatCurrency(getServicePrice(service))}</span>
                             </div>
                         </div>
 

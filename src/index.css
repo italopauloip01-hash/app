@@ -66,6 +66,8 @@ body,
 
 body {
   @apply bg-slate-50 text-slate-800 antialiased min-h-screen relative;
+  /* App instalado no iPhone: não deixa o conteúdo ir para baixo do entalhe/relógio */
+  padding-top: env(safe-area-inset-top);
   background-image:
     radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);

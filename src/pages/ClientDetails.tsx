@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate } from '../utils/dateUtils';
+import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 import type { Service } from '../types';
 import { PaymentMethodPicker, type PaymentMethod } from '../components/PaymentMethodPicker';
 
@@ -344,7 +344,7 @@ export function ClientDetails() {
                             <div>
                                 <p className="text-xs font-black text-red-500 uppercase tracking-widest leading-tight">Não Pago</p>
                                 <p className="text-xl font-bold text-red-700 dark:text-red-400">
-                                    R$ {services.filter(s => s.paymentStatus === 'Pendente' && s.status !== 'Cancelado').reduce((acc, curr) => acc + getServicePrice(curr), 0).toFixed(2)}
+                                    {formatCurrency(services.filter(s => s.paymentStatus === 'Pendente' && s.status !== 'Cancelado').reduce((acc, curr) => acc + getServicePrice(curr), 0))}
                                 </p>
                             </div>
                         </div>
@@ -408,7 +408,7 @@ export function ClientDetails() {
                                                 {service.status === 'Concluído' && (
                                                     <button
                                                         onClick={() => handleViewReceipt(service)}
-                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
+                                                        className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
                                                         title="Gerar Recibo"
                                                     >
                                                         <FileText size={14} />
@@ -417,7 +417,7 @@ export function ClientDetails() {
                                                 )}
                                                 <button
                                                     onClick={() => navigate(`/services/${service.id}/edit`)}
-                                                    className="p-1.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
+                                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
                                                     title="Editar Serviço"
                                                 >
                                                     <Pencil size={14} />
@@ -425,7 +425,7 @@ export function ClientDetails() {
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteService(service.id!)}
-                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
+                                                    className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
                                                     title="Apagar Serviço"
                                                 >
                                                     <Trash2 size={14} />
@@ -462,7 +462,7 @@ export function ClientDetails() {
                                                                 {item.description && <span className="text-slate-400 italic font-medium ml-1">- {item.description}</span>}
                                                             </div>
                                                             <div className="font-black text-slate-900 dark:text-white">
-                                                                R$ {(parseMonetaryValue(item.price) * (Number(item.quantity) || 1)).toFixed(2)}
+                                                                {formatCurrency((parseMonetaryValue(item.price) * (Number(item.quantity) || 1)))}
                                                             </div>
                                                         </div>
                                                     ))}
@@ -476,7 +476,7 @@ export function ClientDetails() {
                                                 <span>{formatLocalDate(service.date)}</span>
                                             </div>
                                             <div>
-                                                Valor: <span className="font-semibold text-slate-700 dark:text-slate-300">R$ {getServicePrice(service).toFixed(2)}</span>
+                                                Valor: <span className="font-semibold text-slate-700 dark:text-slate-300">{formatCurrency(getServicePrice(service))}</span>
                                             </div>
                                             {service.paymentMethod && (
                                                 <div className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
@@ -766,7 +766,7 @@ export function ClientDetails() {
 
             {payingService && (
                 <PaymentMethodPicker
-                    subtitle={`${payingService.type} · R$ ${getServicePrice(payingService).toFixed(2)}`}
+                    subtitle={`${payingService.type} · ${formatCurrency(getServicePrice(payingService))}`}
                     onSelect={(method) => {
                         const target = payingService;
                         setPayingService(null);
