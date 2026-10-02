@@ -31,6 +31,27 @@
   }
 }
 
+/*
+ * Botões que aparecem "ao passar o mouse": em celular/tablet (sem mouse) ficam sempre
+ * visíveis, senão não há como tocá-los. Só em aparelhos com mouse ficam ocultos até o hover.
+ */
+.hover-reveal {
+  opacity: 1;
+  transition: opacity 150ms;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hover-reveal {
+    opacity: 0;
+  }
+
+  .group:hover .hover-reveal,
+  .hover-reveal:focus-within,
+  .hover-reveal:focus-visible {
+    opacity: 1;
+  }
+}
+
 @layer utilities {
   .glass-panel {
     @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl rounded-2xl transition-colors duration-300;

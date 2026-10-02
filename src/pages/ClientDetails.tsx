@@ -691,7 +691,7 @@ export function ClientDetails() {
                                             {photoItem.label}
                                         </div>
 
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+                                        <div className="hover-reveal absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex flex-col justify-end p-3">
                                             <p className="text-[10px] text-white/80 font-medium">{formatLocalDate(photoItem.date)}</p>
                                             <p className="text-xs text-white font-bold">{photoItem.serviceType}</p>
                                         </div>

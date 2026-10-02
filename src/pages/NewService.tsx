@@ -5,7 +5,7 @@ import { db } from '../db';
 import { addService, updateService } from '../lib/supabaseOperations';
 import { useServiceTemplates, useSettings } from '../hooks/useData';
 import { DEFAULT_WORK_END, DEFAULT_WORK_START, dayBlocks, estimateDuration, findConflicts, formatDuration, fromMinutes, suggestSlots, toMinutes } from '../utils/schedule';
-import { ArrowLeft, Camera, Calendar, Save, DollarSign, ChevronDown, UserPlus, Plus, Trash2, Loader2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Camera, Calendar, Save, DollarSign, ChevronDown, UserPlus, Plus, Trash2, Loader2, Clock, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { ClientForm } from '../components/ClientForm';
 import { parseLocalDate, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 import { format } from 'date-fns';
@@ -484,7 +484,8 @@ export function NewService() {
                                     <button
                                         type="button"
                                         onClick={() => removeItem(index)}
-                                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 active:scale-90"
+                                        aria-label="Remover item"
+                                        className="hover-reveal absolute -top-3 -right-2 w-9 h-9 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 active:scale-90"
                                     >
                                         <Trash2 size={14} />
                                     </button>
@@ -641,10 +642,11 @@ export function NewService() {
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => setPhotosBefore(photosBefore.filter((_, i) => i !== index))}
-                                        className="absolute inset-0 bg-red-600/80 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold text-[10px]"
+                                        onClick={() => { if (window.confirm('Remover esta foto?')) setPhotosBefore(photosBefore.filter((_, i) => i !== index)); }}
+                                        aria-label="Remover foto"
+                                        className="absolute top-1 right-1 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-600 active:scale-90"
                                     >
-                                        REMOVER
+                                        <X size={16} />
                                     </button>
                                 </div>
                             ))}
@@ -672,10 +674,11 @@ export function NewService() {
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => setPhotosAfter(photosAfter.filter((_, i) => i !== index))}
-                                        className="absolute inset-0 bg-red-600/80 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity font-bold text-[10px]"
+                                        onClick={() => { if (window.confirm('Remover esta foto?')) setPhotosAfter(photosAfter.filter((_, i) => i !== index)); }}
+                                        aria-label="Remover foto"
+                                        className="absolute top-1 right-1 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-600 active:scale-90"
                                     >
-                                        REMOVER
+                                        <X size={16} />
                                     </button>
                                 </div>
                             ))}

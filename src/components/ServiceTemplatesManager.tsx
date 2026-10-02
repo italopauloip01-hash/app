@@ -1,5 +1,5 @@
 import { formatCurrency } from '../utils/dateUtils';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, Edit2, Check, Tag, DollarSign, FileText, Clock } from 'lucide-react';
 import { formatDuration, itemDuration } from '../utils/schedule';
 
@@ -12,6 +12,7 @@ export function ServiceTemplatesManager() {
     const templates = useServiceTemplates();
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const formRef = useRef<HTMLFormElement>(null);
 
     const [formData, setFormData] = useState<ServiceTemplate>({
         name: '',
@@ -30,6 +31,12 @@ export function ServiceTemplatesManager() {
         setEditingId(template.id!);
         setIsAdding(true);
     };
+
+    // No celular a lista pode estar rolada para baixo: ao abrir a edição, sobe até o formulário
+    // (depois de ele aparecer na tela)
+    useEffect(() => {
+        if (editingId) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [editingId]);
 
     const handleDelete = async (id: string) => {
         if (confirm('Tem certeza que deseja excluir este serviço padrão?')) {
@@ -50,7 +57,7 @@ export function ServiceTemplatesManager() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-slate-800">Serviços Padrão</h2>
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">Serviços Padrão</h2>
                 {!isAdding && (
                     <button
                         onClick={() => setIsAdding(true)}
@@ -63,7 +70,7 @@ export function ServiceTemplatesManager() {
             </div>
 
             {isAdding && (
-                <form onSubmit={handleSubmit} className="glass-panel p-4 animate-fade-in border border-blue-200">
+                <form ref={formRef} onSubmit={handleSubmit} className="glass-panel p-4 animate-fade-in border border-blue-200 scroll-mt-24">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-slate-500 uppercase">Nome do Serviço</label>
@@ -148,8 +155,13 @@ export function ServiceTemplatesManager() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {templates?.map(template => (
-                    <div key={template.id} className="glass-card p-4 border border-slate-100 hover:border-blue-100 flex justify-between group">
-                        <div>
+                    <div
+                        key={template.id}
+                        onClick={() => handleEdit(template)}
+                        className={`glass-card p-4 border flex justify-between gap-2 group cursor-pointer
+                            ${editingId === template.id ? 'border-blue-400 ring-2 ring-blue-500/20' : 'border-slate-100 hover:border-blue-100'}`}
+                    >
+                        <div className="min-w-0">
                             <h3 className="font-semibold text-slate-800 dark:text-white">{template.name}</h3>
                             <p className="text-sm text-slate-500 mt-1 line-clamp-2">{template.description || 'Sem descrição.'}</p>
                             <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-xs font-bold border border-green-100 dark:border-green-900/50">
@@ -160,16 +172,18 @@ export function ServiceTemplatesManager() {
                                 {formatDuration(itemDuration({ type: template.name }, [template]))}
                             </div>
                         </div>
-                        <div className="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="hover-reveal flex flex-col gap-1 shrink-0">
                             <button
-                                onClick={() => handleEdit(template)}
-                                className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleEdit(template); }}
+                                aria-label="Editar serviço padrão"
+                                className="p-2.5 hover:bg-blue-50 dark:hover:bg-blue-900/40 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors"
                             >
                                 <Edit2 size={16} />
                             </button>
                             <button
-                                onClick={() => handleDelete(template.id!)}
-                                className="p-2 hover:bg-red-50 dark:hover:bg-red-900/40 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(template.id!); }}
+                                aria-label="Excluir serviço padrão"
+                                className="p-2.5 hover:bg-red-50 dark:hover:bg-red-900/40 text-slate-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors"
                             >
                                 <Trash2 size={16} />
                             </button>
