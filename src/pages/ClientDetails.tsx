@@ -1,3 +1,4 @@
+import { isOwed } from '../utils/debt';
 import { Capacitor } from '@capacitor/core';
 import { toError } from '../lib/utils';
 import { useState } from 'react';
@@ -335,7 +336,7 @@ export function ClientDetails() {
                 </div>
 
                 {/* Pending Debt Highlight Alert */}
-                {services && services.filter(s => s.paymentStatus === 'Pendente').length > 0 && (
+                {services && services.some(isOwed) && (
                     <div className="mt-6 flex flex-col sm:flex-row items-center justify-between bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border-l-4 border-red-500 gap-4">
                         <div className="flex items-center gap-3 w-full sm:w-auto">
                             <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 flex-shrink-0">
@@ -344,7 +345,7 @@ export function ClientDetails() {
                             <div>
                                 <p className="text-xs font-black text-red-500 uppercase tracking-widest leading-tight">Não Pago</p>
                                 <p className="text-xl font-bold text-red-700 dark:text-red-400">
-                                    {formatCurrency(services.filter(s => s.paymentStatus === 'Pendente' && s.status !== 'Cancelado').reduce((acc, curr) => acc + getServicePrice(curr), 0))}
+                                    {formatCurrency(services.filter(isOwed).reduce((acc, curr) => acc + getServicePrice(curr), 0))}
                                 </p>
                             </div>
                         </div>
@@ -760,7 +761,7 @@ export function ClientDetails() {
                     isOpen={isStatementModalOpen}
                     onClose={() => setIsStatementModalOpen(false)}
                     client={client}
-                    pendingServices={services?.filter(s => s.paymentStatus === 'Pendente') || []}
+                    pendingServices={services?.filter(isOwed) || []}
                 />
             )}
 

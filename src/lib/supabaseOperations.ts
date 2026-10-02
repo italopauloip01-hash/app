@@ -21,7 +21,6 @@ type AnyRecord = Record<string, unknown>;
 const LOCAL_USER_KEY = 'airtech:lastUserId';
 const PUSH_CHUNK_SIZE = 25; // registros com fotos em base64 podem ser grandes
 const PULL_PAGE_SIZE = 1000; // limite padrão do PostgREST por requisição
-const SERVICES_PAGE_SIZE = 20;
 
 function dexieTable(name: LocalTableName): Table<AnyRecord, string> {
     return db.table(name) as Table<AnyRecord, string>;
@@ -300,7 +299,7 @@ async function doFlush() {
         // Exclusões
         const deletes = tableEntries.filter(e => e.op === 'delete');
         if (deletes.length > 0) {
-            const { error } = await supabase.from(remote).delete().in('id', deletes.map(e => e.recordId));
+            const { error } = await supabase.from(remote).delete().in('id', deletes.map(e => e.recordId)).abortSignal(timeout(60000));
             if (error) console.error(`Falha ao excluir em ${remote}:`, error);
             else await acknowledge(deletes);
         }
@@ -341,7 +340,7 @@ async function doFlush() {
                 let sent = false;
                 for (let attempt = 0; attempt < 10; attempt++) {
                     const rows = group.rows.map(r => withoutMissingColumns(remote, r));
-                    const { error } = await supabase.from(remote).upsert(rows, { onConflict });
+                    const { error } = await supabase.from(remote).upsert(rows, { onConflict }).abortSignal(timeout(120000));
                     if (!error) {
                         sent = true;
                         break;
@@ -360,10 +359,30 @@ async function doFlush() {
                     break;
                 }
                 await acknowledge(group.entries);
+                group.entries.forEach(e => markJustPushed(e.key));
             }
             if (failed) break; // mantém o restante na fila para a próxima tentativa
         }
     }
+}
+
+// Registros enviados há pouco: o Realtime devolve o mesmo registro ("eco") logo depois;
+// não é preciso processar (e, com fotos, buscar de novo) o que já está igual aqui.
+const justPushed = new Map<string, number>();
+const ECHO_WINDOW_MS = 20000;
+
+function markJustPushed(key: string) {
+    justPushed.set(key, Date.now());
+}
+
+function wasJustPushed(key: string): boolean {
+    const at = justPushed.get(key);
+    if (at === undefined) return false;
+    if (Date.now() - at > ECHO_WINDOW_MS) {
+        justPushed.delete(key);
+        return false;
+    }
+    return true;
 }
 
 // ============================================
@@ -384,22 +403,46 @@ function setSyncing(state: boolean) {
     syncListeners.forEach(l => l(state));
 }
 
-async function fetchAllRows(remote: string): Promise<AnyRecord[] | null> {
-    // Serviços carregam fotos em base64: páginas pequenas evitam respostas gigantes que estouram
-    const pageSize = remote === 'services' ? SERVICES_PAGE_SIZE : PULL_PAGE_SIZE;
+/** Sinal que cancela a requisição se ela travar (rede ruim no campo). */
+function timeout(ms: number): AbortSignal {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+}
+
+/**
+ * Colunas de serviços SEM as fotos. As fotos (base64) são a parte pesada: os dados
+ * (clientes, serviços, valores) chegam rápido e as fotos vêm depois, em segundo plano.
+ */
+let lightColumnsCache: string | null = null; // descobertas 1x por sessão do app
+
+async function lightServiceColumns(): Promise<string | null> {
+    if (lightColumnsCache) return lightColumnsCache;
+    const { data, error } = await supabase.from('services').select('*').limit(1).abortSignal(timeout(30000));
+    if (error) {
+        console.error('Falha ao ler colunas de services:', error);
+        return null;
+    }
+    if (!data || data.length === 0) return '*';
+    lightColumnsCache = Object.keys(data[0] as AnyRecord).filter(k => !REMOTE_PHOTO_COLUMNS.includes(k)).join(',');
+    return lightColumnsCache;
+}
+
+async function fetchAllRows(remote: string, columns = '*'): Promise<AnyRecord[] | null> {
     const all: AnyRecord[] = [];
-    for (let from = 0; ; from += pageSize) {
+    for (let from = 0; ; from += PULL_PAGE_SIZE) {
         const { data, error } = await supabase
             .from(remote)
-            .select('*')
+            .select(columns)
             .order('id')
-            .range(from, from + pageSize - 1);
+            .range(from, from + PULL_PAGE_SIZE - 1)
+            .abortSignal(timeout(30000));
         if (error) {
             console.error(`Falha ao baixar ${remote}:`, error);
             return null;
         }
-        all.push(...(data as AnyRecord[]));
-        if (!data || data.length < pageSize) return all;
+        all.push(...(data as unknown as AnyRecord[]));
+        if (!data || data.length < PULL_PAGE_SIZE) return all;
     }
 }
 
@@ -412,7 +455,12 @@ export interface SyncResult {
     reason?: 'offline' | 'unauthenticated' | 'busy' | 'error';
 }
 
-export async function syncDatabase(): Promise<SyncResult> {
+/**
+ * 1. Baixa os dados SEM fotos (rápido: telas e somas do mês ficam prontas em segundos)
+ * 2. Envia as alterações feitas neste aparelho
+ * 3. Em segundo plano, baixa fotos que faltam aqui (ou confere todas, 1x por dia)
+ */
+export async function syncDatabase(opts: { fullPhotos?: boolean } = {}): Promise<SyncResult> {
     const pendingNow = async () => db.outbox.count();
 
     if (_isSyncing) return { ok: false, pending: await pendingNow(), reason: 'busy' };
@@ -432,66 +480,28 @@ export async function syncDatabase(): Promise<SyncResult> {
         setSyncing(true);
         missingColumns.clear(); // reavalia: a migração pode ter sido aplicada
 
-        // 1. Envia pendências locais
-        await flushOutbox();
-
-        // 2. Baixa o estado da nuvem
+        // 1. Dados (sem fotos)
         for (const { local, remote } of SYNCED_TABLES) {
-            const remoteRows = await fetchAllRows(remote);
+            let columns = '*';
+            if (remote === 'services') {
+                const light = await lightServiceColumns();
+                if (light === null) {
+                    ok = false;
+                    continue;
+                }
+                columns = light;
+            }
+            const remoteRows = await fetchAllRows(remote, columns);
             if (remoteRows === null) {
+                if (remote === 'services') lightColumnsCache = null;
                 ok = false;
                 continue;
             }
-
-            const pending = new Set(
-                (await db.outbox.where('table').equals(local).toArray()).map(e => e.recordId)
-            );
-            // Não sobrescreve registros com alteração local ainda não enviada
-            const incoming = remoteRows.map(fromRemoteRow).filter(r => !pending.has(String(r.id)));
-
-            if (local === 'settings') {
-                if (incoming.length > 0 && pending.size === 0) {
-                    await db.transaction('rw', db.settings, async () => {
-                        const current = (await db.settings.toArray())[0];
-                        keepLocalOnlyFields(incoming[0], current as unknown as AnyRecord);
-                        await db.settings.clear();
-                        await db.settings.put(incoming[0] as unknown as CompanySettings);
-                    });
-                }
-                continue;
-            }
-
-            // Campos que a nuvem ainda não tem e fotos que sumiram da nuvem mas ainda estão
-            // neste aparelho: mantém (e reenvia as fotos)
-            const healIds: string[] = [];
-            if (incoming.length > 0) {
-                const current = await dexieTable(local).bulkGet(incoming.map(r => String(r.id)));
-                incoming.forEach((r, i) => {
-                    keepLocalOnlyFields(r, current[i]);
-                    if (local === 'services' && keepLocalPhotos(r, current[i])) healIds.push(String(r.id));
-                });
-            }
-
-            await db.transaction('rw', dexieTable(local), async () => {
-                if (incoming.length > 0) await dexieTable(local).bulkPut(incoming);
-
-                // Remove o que foi apagado em outro aparelho. Se a nuvem voltou vazia,
-                // não apaga nada (pode ser falha de sessão e não uma exclusão real).
-                if (remoteRows.length > 0) {
-                    const remoteIds = new Set(remoteRows.map(r => String(r.id)));
-                    const localIds = (await dexieTable(local).toCollection().primaryKeys()).map(String);
-                    const gone = localIds.filter(id => !remoteIds.has(id) && !pending.has(id));
-                    if (gone.length > 0) await dexieTable(local).bulkDelete(gone);
-                }
-            });
-
-            if (healIds.length > 0) {
-                console.warn(`Reenviando fotos de ${healIds.length} serviço(s) que estavam sem fotos na nuvem.`);
-                await enqueueUpserts(local, healIds);
-                await flushOutbox();
-            }
+            await applyRemoteRows(local, remoteRows);
         }
 
+        // 2. Alterações deste aparelho
+        await flushOutbox();
         console.log('Sync complete.');
     } catch (error) {
         console.error('Master Sync failed:', error);
@@ -500,10 +510,119 @@ export async function syncDatabase(): Promise<SyncResult> {
         setSyncing(false);
     }
 
+    // 3. Fotos (não segura o indicador de "sincronizando")
+    if (ok) await syncPhotos(opts.fullPhotos ?? isFullPhotoCheckDue());
+
     const pending = await pendingNow();
     return { ok: ok && pending === 0, pending, reason: ok && pending === 0 ? undefined : 'error' };
 }
 
+/** Grava no aparelho as linhas vindas da nuvem, sem perder alterações locais pendentes. */
+async function applyRemoteRows(local: LocalTableName, remoteRows: AnyRecord[]) {
+    const pending = new Set(
+        (await db.outbox.where('table').equals(local).toArray()).map(e => e.recordId)
+    );
+    // Não sobrescreve registros com alteração local ainda não enviada
+    const incoming = remoteRows.map(fromRemoteRow).filter(r => !pending.has(String(r.id)));
+
+    if (local === 'settings') {
+        if (incoming.length > 0 && pending.size === 0) {
+            await db.transaction('rw', db.settings, async () => {
+                const current = (await db.settings.toArray())[0];
+                keepLocalOnlyFields(incoming[0], current as unknown as AnyRecord);
+                await db.settings.clear();
+                await db.settings.put(incoming[0] as unknown as CompanySettings);
+            });
+        }
+        return;
+    }
+
+    // Campos que não vieram (fotos, colunas que a nuvem ainda não tem) continuam os do aparelho
+    if (incoming.length > 0) {
+        const current = await dexieTable(local).bulkGet(incoming.map(r => String(r.id)));
+        incoming.forEach((r, i) => keepLocalOnlyFields(r, current[i]));
+    }
+
+    await db.transaction('rw', dexieTable(local), async () => {
+        if (incoming.length > 0) await dexieTable(local).bulkPut(incoming);
+
+        // Remove o que foi apagado em outro aparelho. Se a nuvem voltou vazia,
+        // não apaga nada (pode ser falha de sessão e não uma exclusão real).
+        if (remoteRows.length > 0) {
+            const remoteIds = new Set(remoteRows.map(r => String(r.id)));
+            const localIds = (await dexieTable(local).toCollection().primaryKeys()).map(String);
+            const gone = localIds.filter(id => !remoteIds.has(id) && !pending.has(id));
+            if (gone.length > 0) await dexieTable(local).bulkDelete(gone);
+        }
+    });
+}
+
+// ============================================
+// Fotos (segundo plano)
+// ============================================
+const LAST_FULL_PHOTO_CHECK_KEY = 'airtech:lastFullPhotoCheck';
+const PHOTO_BATCH_SIZE = 10;
+let photosSyncing: Promise<void> | null = null;
+
+/** Conferência completa das fotos (inclui recuperar fotos que sumiram da nuvem) 1x por dia. */
+function isFullPhotoCheckDue(): boolean {
+    try {
+        const last = Number(localStorage.getItem(LAST_FULL_PHOTO_CHECK_KEY) || 0);
+        return Date.now() - last > 24 * 60 * 60 * 1000;
+    } catch {
+        return false;
+    }
+}
+
+export function syncPhotos(full = false): Promise<void> {
+    if (!photosSyncing) {
+        photosSyncing = doSyncPhotos(full)
+            .catch(err => console.warn('Sincronização de fotos falhou:', err))
+            .finally(() => { photosSyncing = null; });
+    }
+    return photosSyncing;
+}
+
+async function doSyncPhotos(full: boolean) {
+    const services = await db.services.toArray();
+    // Normal: só serviços que ainda não têm as fotos neste aparelho (ex.: aparelho novo).
+    // Completo: todos (pega fotos alteradas em outro aparelho e recupera as que sumiram da nuvem).
+    const ids = services
+        .filter(s => full || !PHOTO_FIELDS.some(f => f in s))
+        .map(s => String(s.id));
+
+    const healIds: string[] = [];
+    for (let i = 0; i < ids.length; i += PHOTO_BATCH_SIZE) {
+        const batch = ids.slice(i, i + PHOTO_BATCH_SIZE);
+        const { data, error } = await supabase
+            .from('services')
+            .select(['id', ...REMOTE_PHOTO_COLUMNS].join(','))
+            .in('id', batch)
+            .abortSignal(timeout(60000));
+        if (error) {
+            console.warn('Falha ao baixar fotos:', error);
+            return; // tenta de novo na próxima sincronização
+        }
+        for (const row of (data ?? []) as unknown as AnyRecord[]) {
+            const id = String(row.id);
+            if (await db.outbox.get(`services:${id}`)) continue; // alteração local pendente vence
+            const photos = fromRemoteRow(row);
+            delete photos.id;
+            const current = await db.services.get(id);
+            if (keepLocalPhotos(photos, current as unknown as AnyRecord)) healIds.push(id);
+            await dexieTable('services').update(id, photos);
+        }
+    }
+
+    if (full) {
+        try { localStorage.setItem(LAST_FULL_PHOTO_CHECK_KEY, String(Date.now())); } catch { /* storage indisponível */ }
+    }
+    if (healIds.length > 0) {
+        console.warn(`Reenviando fotos de ${healIds.length} serviço(s) que estavam sem fotos na nuvem.`);
+        await enqueueUpserts('services', healIds);
+        await flushOutbox();
+    }
+}
 // ============================================
 // Realtime Sync Engine (Supabase WebSockets)
 // ============================================
@@ -531,14 +650,21 @@ export function subscribeToRealtime(userId: string) {
                     // Ignora eco de alteração local ainda pendente
                     if (await db.outbox.get(`${local}:${newRow.id}`)) return;
 
-                    // O aviso do Realtime NÃO é confiável como registro completo: acima de 1 MB
-                    // ele traz só os campos pequenos (sem fotos, itens, descrição). Busca a
-                    // linha inteira na nuvem antes de gravar.
-                    const { data, error } = await supabase.from(table).select('*').eq('id', newRow.id).maybeSingle();
-                    if (error || !data) return; // o próximo sync resolve
+                    // Eco de algo que este aparelho acabou de enviar: já está igual aqui
+                    if (wasJustPushed(`${local}:${newRow.id}`)) return;
+
+                    // Acima de 1 MB o aviso do Realtime vem cortado (só campos pequenos, sem
+                    // fotos/itens). Nesse caso busca a linha inteira; senão usa o próprio aviso.
+                    let row: AnyRecord = newRow;
+                    const truncated = local === 'services' && !REMOTE_PHOTO_COLUMNS.every(col => col in newRow);
+                    if (truncated) {
+                        const { data, error } = await supabase.from(table).select('*').eq('id', newRow.id).abortSignal(timeout(60000)).maybeSingle();
+                        if (error || !data) return; // o próximo sync resolve
+                        row = data as AnyRecord;
+                    }
                     if (await db.outbox.get(`${local}:${newRow.id}`)) return; // mudou localmente enquanto buscava
 
-                    const record = fromRemoteRow(data as AnyRecord);
+                    const record = fromRemoteRow(row);
                     if (local === 'settings') {
                         await db.transaction('rw', db.settings, async () => {
                             const currentSettings = (await db.settings.toArray())[0];

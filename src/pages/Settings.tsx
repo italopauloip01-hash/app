@@ -162,7 +162,7 @@ export function Settings() {
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            const result = await syncDatabase();
+            const result = await syncDatabase({ fullPhotos: true }); // manual: confere também todas as fotos
             if (result.ok) {
                 alert("Sincronização com a nuvem concluída com sucesso!");
             } else if (result.reason === 'offline') {

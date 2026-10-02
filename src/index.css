@@ -15,7 +15,9 @@
   --shadow-glass: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-@custom-variant dark (&:where(.dark, .dark *));
+/* Documentos (extrato, recibo, orçamento) ficam sempre claros, mesmo no modo escuro:
+   o que aparece na prévia é o que vai na imagem enviada. */
+@custom-variant dark (&:where(.dark, .dark *):not(:where(.forced-light, .forced-light *)));
 
 * {
   touch-action: manipulation;
@@ -102,30 +104,24 @@ body {
     radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%) !important;
 }
 
-.dark h1,
-.dark h2,
-.dark h3,
-.dark h4 {
+/* Ajustes do modo escuro — nunca dentro de documentos (.forced-light), que têm fundo branco */
+.dark :where(h1, h2, h3, h4):not(.forced-light *) {
   @apply text-white;
 }
 
-.dark .text-slate-800,
-.dark .text-slate-700 {
+.dark :where(.text-slate-800, .text-slate-700):not(.forced-light *) {
   @apply text-slate-200;
 }
 
-.dark .text-slate-600,
-.dark .text-slate-500 {
+.dark :where(.text-slate-600, .text-slate-500):not(.forced-light *) {
   @apply text-slate-400;
 }
 
-.dark .bg-slate-100,
-.dark .bg-slate-50 {
+.dark :where(.bg-slate-100, .bg-slate-50):not(.forced-light *) {
   @apply bg-slate-800/50;
 }
 
-.dark .border-slate-100,
-.dark .border-slate-200 {
+.dark :where(.border-slate-100, .border-slate-200):not(.forced-light *) {
   @apply border-slate-700/50;
 }
 

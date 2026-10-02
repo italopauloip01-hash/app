@@ -1,3 +1,4 @@
+import { isOwed } from '../utils/debt';
 import { useState, useMemo } from 'react';
 import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2, Pencil } from 'lucide-react';
 import { useClients, useServices, useCompanyName } from '../hooks/useData';
@@ -31,7 +32,7 @@ export function Clients() {
     const clientDebts = useMemo(() => {
         const map = new Map<string, number>();
         allServices?.forEach((s: Service) => {
-            if (s.paymentStatus === 'Pendente' && s.status !== 'Cancelado') {
+            if (isOwed(s)) {
                 const current = map.get(s.clientId) || 0;
                 map.set(s.clientId, current + getServicePrice(s));
             }
@@ -82,7 +83,7 @@ export function Clients() {
     const handleSendCharge = (e: React.MouseEvent, client: Client, totalDebt: number) => {
         e.stopPropagation();
 
-        const pendingServices = allServices?.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente' && s.status !== 'Cancelado') || [];
+        const pendingServices = allServices?.filter(s => s.clientId === client.id && isOwed(s)) || [];
 
         let message = `*${companyName} - Lembrete de Pagamento* ❄️💰\n\n`;
         message += `Olá, *${client.name}*!\n`;
@@ -274,7 +275,7 @@ export function Clients() {
                     isOpen={isStatementModalOpen}
                     onClose={() => setIsStatementModalOpen(false)}
                     client={selectedClientForStatement}
-                    pendingServices={allServices?.filter(s => s.clientId === selectedClientForStatement.id && s.paymentStatus === 'Pendente') || []}
+                    pendingServices={allServices?.filter(s => s.clientId === selectedClientForStatement.id && isOwed(s)) || []}
                 />
             )}
             {isGlobalStatementOpen && clients && allServices && (

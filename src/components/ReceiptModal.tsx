@@ -1,3 +1,4 @@
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { Capacitor } from '@capacitor/core';
 import { DocumentPreview } from './DocumentPreview';
 import { toError } from '../lib/utils';
@@ -22,6 +23,7 @@ interface ReceiptModalProps {
 }
 
 export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalProps) {
+    useLockBodyScroll(isOpen);
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
@@ -166,11 +168,11 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:bg-white print:p-0">
-            <div className="bg-white w-full max-w-4xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:w-full relative">
+            <div className="dark:bg-slate-900 bg-white w-full max-w-4xl rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[94vh] print:max-h-none print:shadow-none print:w-full relative">
 
                 {/* Modal Header FIXO */}
-                <div className="p-4 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-white print:hidden flex-shrink-0 z-10 w-full">
-                    <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2 text-blue-600 truncate">
+                <div className="dark:bg-slate-900 dark:border-slate-800 p-4 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-white print:hidden flex-shrink-0 z-10 w-full">
+                    <h2 className="dark:text-blue-400 text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2 text-blue-600 truncate">
                         Visualizar Recibo
                     </h2>
                     <div className="flex items-center gap-2">
@@ -201,12 +203,12 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                 </div>
 
                 {/* Pré-visualização: é o próprio documento que vira a imagem */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 bg-slate-50 space-y-3">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 bg-slate-50 space-y-3">
                     <p className="text-sm text-slate-600 truncate">Recibo de <strong>{client.name}</strong></p>
                     <DocumentPreview>
 
                     {/* O Documento Centralizado com tamanho fixo perfeito de Papel */}
-                    <div id="receipt-content" className="bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
+                    <div id="receipt-content" className="forced-light bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
 
                         {/* Header */}
                         <div className="flex justify-between items-end pb-6 border-b-2 border-slate-400">
@@ -341,10 +343,10 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                     `}} />
 
                 {/* Footer Buttons FIXOS */}
-                <div className="p-4 border-t border-slate-100 bg-slate-50 flex flex-row gap-3 no-print flex-shrink-0 z-10 w-full">
+                <div className="dark:bg-slate-900 dark:border-slate-800 p-4 border-t border-slate-100 bg-slate-50 flex flex-row gap-3 no-print flex-shrink-0 z-10 w-full">
                     <button
                         onClick={onClose}
-                        className="flex-[1] py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-95 text-center text-sm sm:text-base"
+                        className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 flex-[1] py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-95 text-center text-sm sm:text-base"
                     >
                         Fechar
                     </button>

@@ -1,3 +1,4 @@
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { Capacitor } from '@capacitor/core';
 import { DocumentPreview } from './DocumentPreview';
 import { toError } from '../lib/utils';
@@ -20,6 +21,7 @@ interface DebtStatementModalProps {
 }
 
 export function DebtStatementModal({ isOpen, onClose, client, pendingServices }: DebtStatementModalProps) {
+    useLockBodyScroll(isOpen);
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
@@ -146,10 +148,10 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in print:bg-white print:p-0">
-            <div className="bg-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative animate-scale-in border border-white/20 max-h-[94vh]">
+            <div className="dark:bg-slate-900 dark:border-slate-800 bg-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative animate-scale-in border border-white/20 max-h-[94vh]">
                 {/* Modal Header */}
-                <div className="px-6 py-5 border-b border-slate-100 flex flex-row items-center justify-between bg-white z-10 w-full relative shrink-0">
-                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 truncate">
+                <div className="dark:bg-slate-900 dark:border-slate-800 px-6 py-5 border-b border-slate-100 flex flex-row items-center justify-between bg-white z-10 w-full relative shrink-0">
+                    <h2 className="dark:text-white text-lg font-bold text-slate-800 flex items-center gap-3 truncate">
                         <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                             <FileText size={16} />
                         </div>
@@ -163,11 +165,11 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                 </div>
 
                 {/* Pré-visualização: é o próprio documento que vira a imagem */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 bg-slate-50 space-y-3">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 bg-slate-50 space-y-3">
                     <div className="flex items-center justify-between gap-2"><p className="text-sm text-slate-600 truncate"><strong>{client.name}</strong> · {sortedPendingServices.length} serviço(s)</p><span className="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700">{formatCurrency(totalDebt)} a receber</span></div>
                     <DocumentPreview>
 
-                <div id="statement-printable" className="bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
+                <div id="statement-printable" className="forced-light bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
                     <div className="flex justify-between items-end pb-6 border-b-[2px] border-slate-300">
                         <div>
                             <h1 className="text-[32px] font-black text-[#0f172a] tracking-tight uppercase leading-none">{companyName}</h1>
@@ -308,7 +310,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                 </div>
 
                 {/* Footer Buttons */}
-                <div className="p-5 border-t border-slate-100 bg-white flex flex-row gap-3 z-10 w-full shrink-0">
+                <div className="dark:bg-slate-900 dark:border-slate-800 p-5 border-t border-slate-100 bg-white flex flex-row gap-3 z-10 w-full shrink-0">
                     <button
                         onClick={handleGeneratePhoto}
                         className="flex-1 py-3.5 bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl font-bold hover:bg-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base border border-slate-200"

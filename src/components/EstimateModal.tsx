@@ -1,3 +1,4 @@
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { Capacitor } from '@capacitor/core';
 import { toError } from '../lib/utils';
 import { X, Share2, Plus, FileText, Search, Trash2, Calendar, MapPin, Phone, Check } from 'lucide-react';
@@ -30,6 +31,7 @@ interface EstimateModalProps {
 }
 
 export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate }: EstimateModalProps) {
+    useLockBodyScroll(isOpen);
     const settings = useSettings();
     const allClients = useClients() || [];
     const templates = useServiceTemplates() || [];
@@ -624,7 +626,7 @@ interface EstimatePreviewProps {
 
 function EstimatePreviewContent({ id, companyName, signature, ownerName, clientInfo, date, items, totalValue, validityDays, validUntil }: EstimatePreviewProps) {
     return (
-        <div id={id} className="bg-white p-12 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]">
+        <div id={id} className="forced-light bg-white p-12 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]">
             {/* Header */}
             <div className="flex justify-between items-end pb-8 border-b-4 border-slate-900">
                 <div>

@@ -33,6 +33,9 @@ beforeEach(async () => {
     fake.state.userId = 'user-1';
     fake.state.failUpserts = false;
     fake.state.upsertCalls = 0;
+    fake.state.photoRowsDownloaded = 0;
+    // Por padrão a conferência completa de fotos (1x/dia) já foi feita hoje
+    localStorage.setItem('airtech:lastFullPhotoCheck', String(Date.now()));
 });
 
 describe('fila de sincronização', () => {
@@ -156,9 +159,9 @@ describe('fotos nunca são perdidas', () => {
         fake.table('services').set('a', remoteRow('a', { photos_before: [PHOTO] }));
         await ops.syncDatabase();
 
-        // Nuvem perdeu as fotos (NULL)
+        // Nuvem perdeu as fotos (NULL); a conferência completa (1x/dia ou botão Sincronizar) recupera
         fake.table('services').set('a', remoteRow('a', { photos_before: null }));
-        await ops.syncDatabase();
+        await ops.syncDatabase({ fullPhotos: true });
 
         expect((await db.services.get('a'))!.photosBefore).toEqual([PHOTO]);
         expect(fake.table('services').get('a')!.photos_before).toEqual([PHOTO]); // recuperada na nuvem
@@ -168,7 +171,7 @@ describe('fotos nunca são perdidas', () => {
         fake.table('services').set('a', remoteRow('a', { photos_before: [PHOTO] }));
         await ops.syncDatabase();
         fake.table('services').set('a', remoteRow('a', { photos_before: [] }));
-        await ops.syncDatabase();
+        await ops.syncDatabase({ fullPhotos: true });
         expect((await db.services.get('a'))!.photosBefore).toEqual([]);
     });
 
@@ -191,6 +194,44 @@ describe('fotos nunca são perdidas', () => {
         const s = (await db.services.get('a'))!;
         expect(s.photosBefore).toEqual([PHOTO]);
         expect(s.items).toHaveLength(1);
+        ops.unsubscribeFromRealtime();
+    });
+});
+
+describe('desempenho da sincronização', () => {
+    const PHOTO = 'data:image/jpeg;base64,' + 'B'.repeat(200);
+
+    it('sincronização normal não baixa de novo fotos que o aparelho já tem', async () => {
+        for (let i = 0; i < 30; i++) fake.table('services').set(`s${i}`, remoteRow(`s${i}`, { photos_before: [PHOTO] }));
+        await ops.syncDatabase(); // aparelho novo: baixa as fotos uma vez
+        expect(fake.state.photoRowsDownloaded).toBeLessThanOrEqual(31); // 30 + 1 linha para descobrir as colunas
+        expect((await db.services.get('s5'))!.photosBefore).toEqual([PHOTO]);
+
+        fake.state.photoRowsDownloaded = 0;
+        await ops.syncDatabase(); // próximas aberturas: só os dados
+        expect(fake.state.photoRowsDownloaded).toBe(0);
+        expect((await db.services.get('s5'))!.photosBefore).toEqual([PHOTO]); // fotos continuam no aparelho
+    });
+
+    it('envio não gera eco: o aviso do Realtime do próprio envio é ignorado', async () => {
+        const id = await ops.addService(service({ photosBefore: [PHOTO] }));
+        await ops.flushOutbox();
+        ops.subscribeToRealtime('user-1');
+        // Eco do envio (cortado, como vem acima de 1 MB): não deve buscar nada nem mexer no registro
+        fake.state.photoRowsDownloaded = 0;
+        await fake.state.realtimeHandler!({ eventType: 'UPDATE', table: 'services', new: { id, user_id: 'user-1' }, old: null });
+        expect(fake.state.photoRowsDownloaded).toBe(0);
+        expect((await db.services.get(id))!.photosBefore).toEqual([PHOTO]);
+        ops.unsubscribeFromRealtime();
+    });
+
+    it('aviso completo do Realtime (registro pequeno) é usado direto', async () => {
+        ops.subscribeToRealtime('user-1');
+        await fake.state.realtimeHandler!({
+            eventType: 'INSERT', table: 'clients',
+            new: { id: 'cx', user_id: 'user-1', name: 'Cliente Novo', phone: '', address: '' }, old: null,
+        });
+        expect((await db.clients.get('cx'))!.name).toBe('Cliente Novo');
         ops.unsubscribeFromRealtime();
     });
 });

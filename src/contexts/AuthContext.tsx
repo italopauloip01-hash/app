@@ -48,15 +48,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         let cancelled = false;
+        let lastSync = 0;
+        const sync = () => {
+            lastSync = Date.now();
+            return syncDatabase();
+        };
         (async () => {
             await ensureLocalDataOwner(userId);
             if (cancelled) return;
             subscribeToRealtime(userId);
-            await syncDatabase();
+            await sync();
         })().catch(err => console.error('Falha ao iniciar sincronização:', err));
+
+        // Ao voltar para o app (celular saiu do bolso, trocou de app, aba voltou ao foco),
+        // busca o que mudou em outros aparelhos. O tempo real pode ter caído no meio-tempo.
+        const onVisible = () => {
+            if (document.visibilityState !== 'visible' || Date.now() - lastSync < 30000) return;
+            subscribeToRealtime(userId);
+            sync().catch(err => console.warn('Sincronização ao voltar falhou:', err));
+        };
+        document.addEventListener('visibilitychange', onVisible);
 
         return () => {
             cancelled = true;
+            document.removeEventListener('visibilitychange', onVisible);
             unsubscribeFromRealtime();
         };
     }, [userId]);

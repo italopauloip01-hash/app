@@ -1,3 +1,5 @@
+import { isOwed } from '../utils/debt';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { Capacitor } from '@capacitor/core';
 import { DocumentPreview } from './DocumentPreview';
 import { toError } from '../lib/utils';
@@ -19,12 +21,13 @@ interface GlobalDebtStatementModalProps {
 }
 
 export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices }: GlobalDebtStatementModalProps) {
+    useLockBodyScroll(isOpen);
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
 
     // Aggregate debts per client
     const debtors = clients.map(client => {
-        const pendingServices = allServices.filter(s => s.clientId === client.id && s.paymentStatus === 'Pendente' && s.status !== 'Cancelado');
+        const pendingServices = allServices.filter(s => s.clientId === client.id && isOwed(s));
         const debt = pendingServices.reduce((sum, s) => sum + getServicePrice(s), 0);
         return { client, debt, serviceCount: pendingServices.length };
     }).filter(d => d.debt > 0).sort((a, b) => b.debt - a.debt); // Sort by highest debt first
@@ -136,9 +139,9 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-fade-in print:bg-white print:p-0">
-            <div className="bg-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative animate-scale-in border border-white/20 max-h-[94vh]">
-                <div className="px-6 py-5 border-b border-slate-100 flex flex-row items-center justify-between bg-white z-10 w-full relative shrink-0">
-                    <h2 className="text-lg font-bold text-slate-800 flex items-center gap-3 truncate">
+            <div className="dark:bg-slate-900 dark:border-slate-800 bg-white w-full max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative animate-scale-in border border-white/20 max-h-[94vh]">
+                <div className="dark:bg-slate-900 dark:border-slate-800 px-6 py-5 border-b border-slate-100 flex flex-row items-center justify-between bg-white z-10 w-full relative shrink-0">
+                    <h2 className="dark:text-white text-lg font-bold text-slate-800 flex items-center gap-3 truncate">
                         <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-600">
                             <FileText size={16} />
                         </div>
@@ -150,11 +153,11 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                 </div>
 
                 {/* Pré-visualização: é o próprio documento que vira a imagem */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-6 bg-slate-50 space-y-3">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-6 bg-slate-50 space-y-3">
                     <div className="flex items-center justify-between gap-2"><p className="text-sm text-slate-600 truncate">{debtors.length} cliente(s) com débito</p><span className="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700">Total {formatCurrency(totalGlobalDebt)}</span></div>
                     <DocumentPreview>
 
-                <div id="global-statement-printable" className="bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
+                <div id="global-statement-printable" className="forced-light bg-white p-10 flex flex-col min-h-[1131px] w-[800px] min-w-[800px]" style={{ transform: 'none' }}>
                     <div className="flex justify-between items-end pb-6 border-b-[2px] border-slate-300">
                         <div>
                             <h1 className="text-[32px] font-black text-[#0f172a] tracking-tight uppercase leading-none">{companyName}</h1>
@@ -246,7 +249,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                     </DocumentPreview>
                 </div>
 
-                <div className="p-5 border-t border-slate-100 bg-white flex flex-row gap-3 z-10 w-full shrink-0">
+                <div className="dark:bg-slate-900 dark:border-slate-800 p-5 border-t border-slate-100 bg-white flex flex-row gap-3 z-10 w-full shrink-0">
                     <button onClick={handleGeneratePhoto} className="flex-1 py-3.5 bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl font-bold hover:bg-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base border border-slate-200">
                         <ImageIcon size={18} className="text-slate-500" />
                         <span>Salvar Imagem</span>
