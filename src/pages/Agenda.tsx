@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, Plus, User, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, Plus, User, MapPin, Wallet } from 'lucide-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db';
 import { addMonths, format, isSameDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useDetailedServices, useServiceTemplates, useSettings, useClients } from '../hooks/useData';
 import { saveSettings } from '../lib/supabaseOperations';
 import {
     DEFAULT_WORK_END, DEFAULT_WORK_START, bookedMinutes, dayBlocks, dayKey, formatDuration,
-    freeRanges, fromMinutes, serviceDuration, suggestSlots, toMinutes,
+    freeRanges, fromMinutes, serviceDuration, suggestSlots, toMinutes, dayEarnings,
 } from '../utils/schedule';
-import { MONTH_NAMES_PT } from '../utils/dateUtils';
+import { MONTH_NAMES_PT, formatCurrency } from '../utils/dateUtils';
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -24,6 +26,8 @@ export function Agenda() {
     const services = useMemo(() => servicesData ?? [], [servicesData]);
     const templates = useMemo(() => templatesData ?? [], [templatesData]);
     const clients = useMemo(() => clientsData ?? [], [clientsData]);
+    const helperEntriesData = useLiveQuery(() => db.helperEntries.toArray());
+    const helperEntries = useMemo(() => helperEntriesData ?? [], [helperEntriesData]);
     const settings = useSettings();
     const [month, setMonth] = useState(() => startOfMonth(new Date()));
     const [selected, setSelected] = useState(() => new Date());
@@ -57,6 +61,7 @@ export function Agenda() {
     const free = freeRanges(blocks, workStart, workEnd);
     const booked = bookedMinutes(blocks);
     const nextSlot = suggestSlots(blocks, 60, workStart, workEnd)[0];
+    const earnings = dayEarnings(services, helperEntries, selectedKey);
 
     const schedule = (startTime?: string) =>
         navigate('/services/new', { state: { date: selectedKey, startTime, fromAgenda: true } });
@@ -170,6 +175,37 @@ export function Agenda() {
                     <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                         <div className={`h-full ${loadColor(booked / capacity)}`} style={{ width: `${Math.min(100, (booked / capacity) * 100)}%` }} />
                     </div>
+
+                    {/* Ganho do dia */}
+                    {earnings.count > 0 && (
+                        <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-900/10 p-3 space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                                    <Wallet size={14} /> Ganho do dia
+                                </p>
+                                <p className="text-lg font-black text-emerald-700 dark:text-emerald-400">{formatCurrency(earnings.profit)}</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center">
+                                <div className="rounded-xl bg-white/70 dark:bg-slate-900/50 py-1.5">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">Serviços</p>
+                                    <p className="text-sm font-bold text-slate-800 dark:text-white">{formatCurrency(earnings.total)}</p>
+                                </div>
+                                <div className="rounded-xl bg-white/70 dark:bg-slate-900/50 py-1.5">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">Recebido</p>
+                                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(earnings.received)}</p>
+                                </div>
+                                <div className="rounded-xl bg-white/70 dark:bg-slate-900/50 py-1.5">
+                                    <p className="text-[10px] font-bold uppercase text-slate-400">A receber</p>
+                                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatCurrency(earnings.pending)}</p>
+                                </div>
+                            </div>
+                            {earnings.helperCost > 0 && (
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    Já descontado {formatCurrency(earnings.helperCost)} de ajudantes neste dia.
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {blocks.length === 0 && withoutTime.length === 0 && (
                         <p className="text-sm text-slate-400 text-center py-6">Nenhum serviço neste dia.</p>

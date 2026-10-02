@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     estimateDuration, itemDuration, dayBlocks, findConflicts, suggestSlots, freeRanges,
-    bookedMinutes, toMinutes, fromMinutes, formatDuration,
+    bookedMinutes, toMinutes, fromMinutes, formatDuration, dayEarnings,
 } from './schedule';
 
 const svc = (id: string, startTime: string, items: { type: string; quantity?: number }[], extra = {}) => ({
@@ -63,6 +63,34 @@ describe('agenda do dia', () => {
     it('ao editar, o próprio serviço não conta como choque', () => {
         const without = dayBlocks(services, '2026-10-05', [], 'a');
         expect(findConflicts(without, toMinutes('08:00'), 180)).toEqual([]);
+    });
+});
+
+describe('ganho do dia', () => {
+    const d5 = new Date(2026, 9, 5);
+    const services = [
+        { date: d5, status: 'Concluído', paymentStatus: 'Pago', items: [{ price: 600, quantity: 1 }], price: 600 },
+        { date: d5, status: 'Agendado', paymentStatus: 'Pendente', items: [{ price: '180,00', quantity: 2 }], price: 0 },
+        { date: d5, status: 'Cancelado', paymentStatus: 'Pendente', price: 999 }, // não conta
+        { date: new Date(2026, 9, 6), status: 'Concluído', paymentStatus: 'Pago', price: 500 }, // outro dia
+        { date: '2026-10-05T03:00:00+00:00', status: 'Concluído', paymentStatus: 'Pago', price: '100' }, // vindo da nuvem
+    ];
+    const helpers = [
+        { date: d5, type: 'work', amount: 150 },
+        { date: d5, type: 'payment', amount: 150 }, // pagamento ao ajudante não é custo novo
+        { date: new Date(2026, 9, 6), type: 'work', amount: 80 },
+    ];
+
+    it('soma pagos e a receber, desconta ajudantes e ignora cancelados', () => {
+        expect(dayEarnings(services, helpers, '2026-10-05')).toEqual({
+            total: 1060, received: 700, pending: 360, helperCost: 150, profit: 910, count: 3,
+        });
+    });
+
+    it('dia vazio', () => {
+        expect(dayEarnings(services, helpers, '2026-10-10')).toEqual({
+            total: 0, received: 0, pending: 0, helperCost: 0, profit: 0, count: 0,
+        });
     });
 });
 

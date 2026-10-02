@@ -3,7 +3,7 @@
  * sugestão de horários livres. Funções puras (sem banco), para poder testar.
  */
 import { format } from 'date-fns';
-import { parseLocalDate } from './dateUtils';
+import { getServicePrice, parseLocalDate, parseMonetaryValue } from './dateUtils';
 
 export const DEFAULT_WORK_START = '08:00';
 export const DEFAULT_WORK_END = '18:00';
@@ -142,6 +142,35 @@ export function freeRanges<T>(
     }
     if (close - cursor >= 30) ranges.push({ start: cursor, end: close });
     return ranges.filter(r => r.end > r.start);
+}
+
+export interface DayEarnings {
+    total: number; // valor de todos os serviços do dia (exceto cancelados)
+    received: number; // já pagos
+    pending: number; // a receber
+    helperCost: number; // trabalho de ajudantes lançado no dia
+    profit: number; // total - custo de ajudantes
+    count: number;
+}
+
+/** Ganho do dia: soma dos serviços (pagos e a receber) menos o custo de ajudantes. */
+export function dayEarnings(
+    services: { date: unknown; status?: string; paymentStatus?: string; items?: unknown; price?: unknown }[],
+    helperEntries: { date: unknown; type: string; amount: unknown }[],
+    day: string,
+): DayEarnings {
+    const ofDay = services.filter(s => s.status !== 'Cancelado' && dayKey(s.date) === day);
+    let received = 0, pending = 0;
+    for (const s of ofDay) {
+        const value = getServicePrice(s);
+        if (s.paymentStatus === 'Pago') received += value;
+        else pending += value;
+    }
+    const helperCost = helperEntries
+        .filter(e => e.type === 'work' && dayKey(e.date) === day)
+        .reduce((sum, e) => sum + parseMonetaryValue(e.amount), 0);
+    const total = received + pending;
+    return { total, received, pending, helperCost, profit: total - helperCost, count: ofDay.length };
 }
 
 /** Minutos ocupados no dia (serviços + deslocamentos entre eles). */
