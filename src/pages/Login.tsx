@@ -2,7 +2,7 @@ import { toError } from '../lib/utils';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export function Login() {
@@ -10,6 +10,8 @@ export function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function Login() {
                     return;
                 }
 
-                const { error } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                 });
@@ -58,10 +60,19 @@ export function Login() {
                     return;
                 }
 
-                setSuccessMsg("Conta criada com sucesso! Por favor, faça login.");
-                setIsSignUp(false);
+                if (data?.session) {
+                    setSuccessMsg("Conta criada com sucesso!");
+                } else if (data?.user && !data?.user.confirmed_at) {
+                    setSuccessMsg("Conta criada! Se a confirmação estiver ativada, verifique sua caixa de entrada.");
+                    setIsSignUp(false);
+                } else {
+                    setSuccessMsg("Conta criada com sucesso! Por favor, faça login.");
+                    setIsSignUp(false);
+                }
                 setPassword(''); // clear password for safety
                 setConfirmPassword('');
+                setShowPassword(false);
+                setShowConfirmPassword(false);
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
                     email,
@@ -73,6 +84,8 @@ export function Login() {
                     let errorMessage = "Erro ao fazer login. Verifique suas credenciais.";
                     if (error.message.includes("Invalid login credentials")) {
                         errorMessage = "E-mail ou senha incorretos.";
+                    } else if (error.message.includes("Email not confirmed")) {
+                        errorMessage = "E-mail ainda não confirmado. Verifique seu e-mail para ativar sua conta.";
                     }
                     setError(errorMessage);
                     return;
@@ -142,13 +155,22 @@ export function Login() {
                                     <Lock size={18} className="text-slate-400" />
                                 </div>
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
+                                    className="w-full pl-11 pr-11 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
                                     placeholder="••••••••"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                                    tabIndex={-1}
+                                    aria-label={showPassword ? "Ocultar senha" : "Ver senha"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
 
@@ -162,13 +184,22 @@ export function Login() {
                                         <Lock size={18} className="text-slate-400" />
                                     </div>
                                     <input
-                                        type="password"
+                                        type={showConfirmPassword ? "text" : "password"}
                                         required={!!isSignUp}
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
+                                        className="w-full pl-11 pr-11 py-3 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-100 dark:border-slate-700 rounded-xl focus:border-blue-500 focus:ring-0 transition-all outline-none font-medium dark:text-white"
                                         placeholder="••••••••"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                                        tabIndex={-1}
+                                        aria-label={showConfirmPassword ? "Ocultar confirmação de senha" : "Ver confirmação de senha"}
+                                    >
+                                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -197,6 +228,8 @@ export function Login() {
                                     setSuccessMsg(null);
                                     setPassword('');
                                     setConfirmPassword('');
+                                    setShowPassword(false);
+                                    setShowConfirmPassword(false);
                                 }}
                                 className="text-sm text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
                             >
