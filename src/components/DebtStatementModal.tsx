@@ -1,16 +1,12 @@
+import { useDocumentShare } from '../hooks/useDocumentShare';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { Capacitor } from '@capacitor/core';
 import { DocumentPreview } from './DocumentPreview';
-import { toError } from '../lib/utils';
 import { X, FileText, Share2, Image } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { generatePixPayload } from '../utils/PixUtils';
 
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { applyPrintColors } from '../utils/pdfUtils';
 import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 
 interface DebtStatementModalProps {
@@ -22,6 +18,7 @@ interface DebtStatementModalProps {
 
 export function DebtStatementModal({ isOpen, onClose, client, pendingServices }: DebtStatementModalProps) {
     useLockBodyScroll(isOpen);
+    const share = useDocumentShare('statement-printable', `extrato-${client.name.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'dd-MM-yyyy')}.jpg`, 'Extrato de débitos');
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
@@ -34,97 +31,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
 
     if (!isOpen) return null;
 
-    const handleGeneratePhoto = async () => {
-        const originalElement = document.getElementById('statement-printable');
-        if (!originalElement) {
-            alert("Erro interno: Conteúdo do extrato não encontrado.");
-            return;
-        }
-
-        const fileName = `extrato-${client.name.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'dd-MM-yyyy')}.jpg`;
-
-        try {
-            console.log("Gerando imagem de extrato...");
-
-            // 1. Criar um clone DOM Real temporário off-screen para forçar o layout 800px Premium
-            const clone = originalElement.cloneNode(true) as HTMLElement;
-            clone.id = 'statement-printable-clone';
-
-            // Remover as classes responsivas que o usuário vê na tela
-            clone.className = clone.className.replace(/w-full|max-w-\[21cm\]/g, '');
-
-            // Forçar o layout fixo absoluto para o navegador calcular (Reflow perfeito)
-            clone.style.width = '800px';
-            clone.style.minWidth = '800px';
-            clone.style.maxWidth = '800px';
-            clone.style.position = 'absolute';
-            clone.style.top = '-9999px';
-            clone.style.left = '-9999px';
-
-            // Anexar no body invisível
-            document.body.appendChild(clone);
-
-            // Permitir que o navegador recalcule a árvore (Text Wrap)
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            // Capturar
-            const { default: html2canvas } = await import('html2canvas');
-            const canvas = await html2canvas(clone, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 800,
-                width: 800,
-                onclone: (clonedDoc) => {
-                    applyPrintColors(clonedDoc);
-                }
-            });
-
-            // Limpar o DOM
-            document.body.removeChild(clone);
-
-            const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
-
-            if (Capacitor.isNativePlatform()) {
-                const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-
-                const result = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64Data,
-                    directory: Directory.Cache
-                });
-
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                try {
-                    await Share.share({
-                        title: 'Extrato de Débitos - AirTech Pro',
-                        text: `Extrato de débitos - ${client.name}`,
-                        url: result.uri,
-                        dialogTitle: 'Compartilhar Extrato'
-                    });
-                } catch (caught) {
-                    const shareError = toError(caught);
-                    if (shareError.message && shareError.message.includes('canceled')) {
-                        console.log("Compartilhamento cancelado pelo usuário.");
-                        return;
-                    }
-                    throw shareError;
-                }
-            } else {
-                const link = document.createElement('a');
-                link.download = fileName;
-                link.href = base64Uri;
-                link.click();
-            }
-        } catch (caught) {
-            const error = toError(caught);
-            console.error("Erro detalhado ao gerar extrato Imagem:", error);
-            if (error.message && error.message.includes('canceled')) return;
-            alert(`Falha no extrato: ${error.message || "Tente novamente."}`);
-        }
-    };
+    const handleGeneratePhoto = share.saveImage;
 
     const handleShare = () => {
         let text = `*EXTRATO DE DÉBITOS - ${companyName.toUpperCase()}*\n\n` +
@@ -141,9 +48,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
         }
 
         text += `\nSegue em anexo o comprovante detalhado.`;
-
-        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        share.sendWhatsApp(text, client.phone);
     };
 
     return (
@@ -316,7 +221,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                         className="flex-1 py-3.5 bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl font-bold hover:bg-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base border border-slate-200"
                     >
                         <Image size={18} className="text-slate-500" />
-                        <span>Salvar Imagem</span>
+                        <span>{share.busy === 'image' ? 'Gerando...' : 'Salvar Imagem'}</span>
                     </button>
 
                     <button
@@ -324,7 +229,7 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                         className="flex-1 py-3.5 bg-[#25D366] text-white rounded-xl font-bold shadow-lg shadow-green-500/20 hover:bg-[#1ebd5a] transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
                     >
                         <Share2 size={18} />
-                        <span>Enviar WhatsApp</span>
+                        <span>{share.busy === 'whatsapp' ? 'Gerando...' : 'Enviar WhatsApp'}</span>
                     </button>
                 </div>
             </div>

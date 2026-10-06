@@ -1,18 +1,13 @@
+import { useDocumentShare } from '../hooks/useDocumentShare';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { Capacitor } from '@capacitor/core';
 import { DocumentPreview } from './DocumentPreview';
-import { toError } from '../lib/utils';
 import { X, Share2, Image } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { generatePixPayload } from '../utils/PixUtils';
-import { formatWhatsAppNumber } from '../utils/phoneUtils';
 
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { applyPrintColors } from '../utils/pdfUtils';
 import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 
 interface ReceiptModalProps {
@@ -24,6 +19,7 @@ interface ReceiptModalProps {
 
 export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalProps) {
     useLockBodyScroll(isOpen);
+    const share = useDocumentShare('receipt-content', `recibo-${client.name.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'dd-MM-yyyy')}.jpg`, 'Recibo');
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
@@ -62,109 +58,10 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
         }
 
         text += `\nObrigado pela preferência!`;
-
-        const url = `https://wa.me/${formatWhatsAppNumber(client.phone)}?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        share.sendWhatsApp(text, client.phone);
     };
 
-    const handleGeneratePhoto = async () => {
-        const originalElement = document.getElementById('receipt-content');
-        if (!originalElement) {
-            alert("Erro interno: Conteúdo do recibo não encontrado.");
-            return;
-        }
-
-        const fileName = `recibo-${client.name.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'dd-MM-yyyy')}.jpg`;
-
-        try {
-            console.log("Iniciando geração de imagem...");
-
-            // 1. Criar um clone DOM Real temporário off-screen para forçar o layout 800px Premium 
-            // sem que os botões ou o flex nativo quebrem o html2canvas.
-            const clone = originalElement.cloneNode(true) as HTMLElement;
-            clone.id = 'receipt-content-clone';
-
-            // Remover as classes responsivas que o usuário vê na tela
-            clone.className = clone.className.replace(/w-full|max-w-\[21cm\]/g, '');
-
-            // Forçar o layout fixo absoluto para o navegador calcular (Reflow perfeito)
-            clone.style.width = '800px';
-            clone.style.minWidth = '800px';
-            clone.style.maxWidth = '800px';
-            clone.style.position = 'absolute';
-            clone.style.top = '-9999px';
-            clone.style.left = '-9999px';
-
-            // Anexar no body invisível
-            document.body.appendChild(clone);
-
-            // Permitir que o navegador recalcule a árvore (Text Wrap)
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            // Capturar
-            const { default: html2canvas } = await import('html2canvas');
-            const canvas = await html2canvas(clone, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 800,
-                width: 800,
-                onclone: (clonedDoc) => {
-                    applyPrintColors(clonedDoc);
-                }
-            });
-
-            // Limpar o DOM
-            document.body.removeChild(clone);
-
-            const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
-
-            if (Capacitor.isNativePlatform()) {
-                // Ensure pure base64 without data headers to avoid corrupt files
-                const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-
-                const result = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64Data,
-                    directory: Directory.Cache
-                });
-
-                // Pequeno delay para garantir que o sistema Android registre o arquivo no cache físico antes de tentar compartilhar.
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                try {
-                    await Share.share({
-                        title: 'Recibo - AirTech Pro',
-                        text: `Recibo de serviço - ${client.name}`,
-                        url: result.uri,
-                        dialogTitle: 'Compartilhar Recibo'
-                    });
-                } catch (caught) {
-                    const shareError = toError(caught);
-                    if (shareError.message && shareError.message.includes('canceled')) {
-                        console.log("Compartilhamento cancelado pelo usuário.");
-                        return; // Não exibir alerta vermelho na tela se o usuário apenas fechou a gaveta de share.
-                    }
-                    throw shareError;
-                }
-            } else {
-                // Web fallback
-                const link = document.createElement('a');
-                link.download = fileName;
-                link.href = base64Uri;
-                link.click();
-            }
-        } catch (caught) {
-            const error = toError(caught);
-            console.error("Erro detalhado ao gerar/compartilhar Imagem:", error);
-
-            // Ignorar display de erro se foi apenas um cancelamento de share acidental não capturado no try interno
-            if (error.message && error.message.includes('canceled')) return;
-
-            alert(`Erro ao gerar Imagem: ${error.message || "Tente novamente."}`);
-        }
-    };
+    const handleGeneratePhoto = share.saveImage;
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:bg-white print:p-0">
@@ -182,7 +79,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                             title="Compartilhar via WhatsApp"
                         >
                             <Share2 size={18} />
-                            <span className="hidden sm:inline">WhatsApp</span>
+                            <span className="hidden sm:inline">{share.busy === 'whatsapp' ? 'Gerando...' : 'WhatsApp'}</span>
                         </button>
                         <button
                             onClick={handleGeneratePhoto}
@@ -355,7 +252,7 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                         className="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 text-sm sm:text-base"
                     >
                         <Image size={18} />
-                        <span className="whitespace-nowrap">Salvar Foto</span>
+                        <span className="whitespace-nowrap">{share.busy === 'image' ? 'Gerando...' : 'Salvar Foto'}</span>
                     </button>
                 </div>
             </div>

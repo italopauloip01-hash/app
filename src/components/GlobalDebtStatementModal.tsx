@@ -1,16 +1,12 @@
+import { useDocumentShare } from '../hooks/useDocumentShare';
 import { isOwed } from '../utils/debt';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { Capacitor } from '@capacitor/core';
 import { DocumentPreview } from './DocumentPreview';
-import { toError } from '../lib/utils';
 import { X, FileText, Share2, Image as ImageIcon } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { applyPrintColors } from '../utils/pdfUtils';
 import { getServicePrice, formatCurrency } from '../utils/dateUtils';
 
 interface GlobalDebtStatementModalProps {
@@ -22,6 +18,7 @@ interface GlobalDebtStatementModalProps {
 
 export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices }: GlobalDebtStatementModalProps) {
     useLockBodyScroll(isOpen);
+    const share = useDocumentShare('global-statement-printable', `relatorio-debitos-gerais-${format(new Date(), 'dd-MM-yyyy')}.jpg`, 'Relatório de débitos');
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
 
@@ -36,89 +33,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
     if (!isOpen) return null;
 
-    const handleGeneratePhoto = async () => {
-        const originalElement = document.getElementById('global-statement-printable');
-        if (!originalElement) {
-            alert("Erro interno: Conteúdo do relatório não encontrado.");
-            return;
-        }
-
-        const fileName = `relatorio-debitos-gerais-${format(new Date(), 'dd-MM-yyyy')}.jpg`;
-
-        try {
-            console.log("Gerando imagem do relatório...");
-
-            // Clone to force absolute fixed layout for rendering
-            const clone = originalElement.cloneNode(true) as HTMLElement;
-            clone.id = 'global-statement-printable-clone';
-            clone.className = clone.className.replace(/w-full|max-w-\[21cm\]/g, '');
-            clone.style.width = '800px';
-            clone.style.minWidth = '800px';
-            clone.style.maxWidth = '800px';
-            clone.style.position = 'absolute';
-            clone.style.top = '-9999px';
-            clone.style.left = '-9999px';
-
-            document.body.appendChild(clone);
-
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            const { default: html2canvas } = await import('html2canvas');
-            const canvas = await html2canvas(clone, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 800,
-                width: 800,
-                onclone: (clonedDoc) => {
-                    applyPrintColors(clonedDoc);
-                }
-            });
-
-            document.body.removeChild(clone);
-
-            const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
-
-            if (Capacitor.isNativePlatform()) {
-                const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-
-                const result = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64Data,
-                    directory: Directory.Cache
-                });
-
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                try {
-                    await Share.share({
-                        title: 'Relatório de Débitos Gerais - AirTech Pro',
-                        text: 'Relatório consolidado de todos os clientes em atraso.',
-                        url: result.uri,
-                        dialogTitle: 'Compartilhar Relatório'
-                    });
-                } catch (caught) {
-                    const shareError = toError(caught);
-                    if (shareError.message && shareError.message.includes('canceled')) {
-                        console.log("Compartilhamento cancelado pelo usuário.");
-                        return;
-                    }
-                    throw shareError;
-                }
-            } else {
-                const link = document.createElement('a');
-                link.download = fileName;
-                link.href = base64Uri;
-                link.click();
-            }
-        } catch (caught) {
-            const error = toError(caught);
-            console.error("Erro detalhado ao gerar relatório Imagem:", error);
-            if (error.message && error.message.includes('canceled')) return;
-            alert(`Falha no relatório: ${error.message || "Tente novamente."}`);
-        }
-    };
+    const handleGeneratePhoto = share.saveImage;
 
     const handleShareText = () => {
         let text = `*RELATÓRIO DE DEVEDORES - ${companyName.toUpperCase()}*\n`;
@@ -132,9 +47,7 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
 
         text += `*TOTAL GERAL A RECEBER: ${formatCurrency((Number(totalGlobalDebt) || 0))}*\n\n`;
         text += `Segue em anexo o relatório detalhado em imagem.`;
-
-        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        share.sendWhatsApp(text);
     };
 
     return (
@@ -252,11 +165,11 @@ export function GlobalDebtStatementModal({ isOpen, onClose, clients, allServices
                 <div className="dark:bg-slate-900 dark:border-slate-800 p-5 border-t border-slate-100 bg-white flex flex-row gap-3 z-10 w-full shrink-0">
                     <button onClick={handleGeneratePhoto} className="flex-1 py-3.5 bg-slate-100 text-slate-700 hover:text-slate-900 rounded-xl font-bold hover:bg-slate-200 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base border border-slate-200">
                         <ImageIcon size={18} className="text-slate-500" />
-                        <span>Salvar Imagem</span>
+                        <span>{share.busy === 'image' ? 'Gerando...' : 'Salvar Imagem'}</span>
                     </button>
                     <button onClick={handleShareText} className="flex-1 py-3.5 bg-[#25D366] text-white rounded-xl font-bold shadow-lg shadow-green-500/20 hover:bg-[#1ebd5a] transition-all active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base">
                         <Share2 size={18} />
-                        <span>Enviar WhatsApp</span>
+                        <span>{share.busy === 'whatsapp' ? 'Gerando...' : 'Enviar WhatsApp'}</span>
                     </button>
                 </div>
             </div>

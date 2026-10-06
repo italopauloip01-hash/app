@@ -1,6 +1,5 @@
+import { useDocumentShare } from '../hooks/useDocumentShare';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
-import { Capacitor } from '@capacitor/core';
-import { toError } from '../lib/utils';
 import { X, Share2, Plus, FileText, Search, Trash2, Calendar, MapPin, Phone, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { Client, Estimate } from '../types';
@@ -8,13 +7,9 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSettings, useClients, useServiceTemplates, DEFAULT_COMPANY_NAME } from '../hooks/useData';
 import { addEstimate, updateEstimate } from '../lib/supabaseOperations';
-import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatLocalDate, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 import { generateUUID } from '../utils/uuid';
 
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory } from '@capacitor/filesystem';
-import { applyPrintColors } from '../utils/pdfUtils';
 
 interface EstimateItem {
     type: string;
@@ -49,13 +44,16 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
     ]);
     const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
     const [validityDays, setValidityDays] = useState(7);
+    const share = useDocumentShare('estimate-content', `orcamento-${(clientInfo.name || 'cliente').replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'dd-MM-yyyy')}.jpg`, 'Orçamento');
 
     // Pickers State
     const [isClientPickerOpen, setIsClientPickerOpen] = useState(false);
     const [isServicePickerOpen, setIsServicePickerOpen] = useState<{ isOpen: boolean; index: number }>({ isOpen: false, index: -1 });
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Update client info when initialClient or initialEstimate changes
+    // Update client info when initialClient or initialEstimate changes.
+    // Intencional: reinicia o formulário com o orçamento/cliente escolhido a cada abertura.
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         if (initialEstimate) {
             setClientInfo({
@@ -79,6 +77,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
             setItems([{ type: 'Instalação', description: '', quantity: 1, price: 0 }]);
         }
     }, [initialClient, initialEstimate, isOpen]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     if (!isOpen) return null;
 
@@ -140,9 +139,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
         });
 
         text += `\nEstamos à disposição para qualquer dúvida!`;
-
-        const url = `https://wa.me/${formatWhatsAppNumber(clientInfo.phone)}?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        share.sendWhatsApp(text, clientInfo.phone);
     };
 
     const handleSave = async () => {
@@ -178,79 +175,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
         }
     };
 
-    const handleGeneratePhoto = async () => {
-        const originalElement = document.getElementById('estimate-content');
-        if (!originalElement) {
-            alert("Erro interno: Conteúdo do orçamento não encontrado.");
-            return;
-        }
-
-        const fileName = `orcamento-${clientInfo.name.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'dd-MM-yyyy')}.jpg`;
-
-        try {
-            const clone = originalElement.cloneNode(true) as HTMLElement;
-            clone.id = 'estimate-content-clone';
-            clone.className = clone.className.replace(/w-full|max-w-\[21cm\]/g, '');
-            clone.style.width = '800px';
-            clone.style.minWidth = '800px';
-            clone.style.maxWidth = '800px';
-            clone.style.position = 'absolute';
-            clone.style.top = '-9999px';
-            clone.style.left = '-9999px';
-
-            document.body.appendChild(clone);
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            const { default: html2canvas } = await import('html2canvas');
-            const canvas = await html2canvas(clone, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                windowWidth: 800,
-                width: 800,
-                onclone: (clonedDoc) => {
-                    applyPrintColors(clonedDoc);
-                }
-            });
-
-            document.body.removeChild(clone);
-            const base64Uri = canvas.toDataURL('image/jpeg', 0.95);
-
-            if (Capacitor.isNativePlatform()) {
-                const base64Data = base64Uri.split(',')[1] || base64Uri.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-                const result = await Filesystem.writeFile({
-                    path: fileName,
-                    data: base64Data,
-                    directory: Directory.Cache
-                });
-                await new Promise(resolve => setTimeout(resolve, 300));
-
-                try {
-                    await Share.share({
-                        title: 'Orçamento - AirTech Pro',
-                        text: `Orçamento de serviço - ${clientInfo.name}`,
-                        url: result.uri,
-                        dialogTitle: 'Compartilhar Orçamento'
-                    });
-                } catch (caught) {
-                    const shareError = toError(caught);
-                    if (shareError.message && shareError.message.includes('canceled')) return;
-                    throw shareError;
-                }
-            } else {
-                const link = document.createElement('a');
-                link.download = fileName;
-                link.href = base64Uri;
-                link.click();
-            }
-        } catch (caught) {
-            const error = toError(caught);
-            console.error("Erro ao gerar Foto:", error);
-            if (error.message && error.message.includes('canceled')) return;
-            alert(`Erro ao gerar Foto: ${error.message || "Tente novamente."}`);
-        }
-    };
+    const handleGeneratePhoto = share.saveImage;
 
     return (
         <>
@@ -482,7 +407,7 @@ export function EstimateModal({ isOpen, onClose, initialClient, initialEstimate 
                             className="flex-1 py-3.5 px-6 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all active:scale-95"
                         >
                             <Share2 size={20} />
-                            COMPARTILHAR ZAP
+                            {share.busy === 'whatsapp' ? 'GERANDO...' : 'ENVIAR NO ZAP'}
                         </button>
                         <button
                             onClick={handleSave}
