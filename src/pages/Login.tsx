@@ -2,8 +2,10 @@ import { toError } from '../lib/utils';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff, Smartphone, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { InstallAppModal } from '../components/InstallAppModal';
 
 export function Login() {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -17,6 +19,7 @@ export function Login() {
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { canInstall, isIOS, promptInstall, showInstructions, setShowInstructions } = usePWAInstall();
 
     // Auto-redirect if user gets authenticated successfully
     useEffect(() => {
@@ -237,8 +240,38 @@ export function Login() {
                             </button>
                         </div>
                     </form>
+
+                    {canInstall && (
+                        <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-700/60">
+                            <div className="p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl flex items-center justify-between gap-3 text-left">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 text-white">
+                                        <Smartphone size={20} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">Instalar no Celular</p>
+                                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">Acesse direto da tela inicial</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={promptInstall}
+                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl shadow-md transition-all shrink-0 flex items-center gap-1.5"
+                                >
+                                    <Download size={13} />
+                                    <span>Instalar</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            <InstallAppModal
+                isOpen={showInstructions}
+                onClose={() => setShowInstructions(false)}
+                isIOS={isIOS}
+            />
         </div>
     );
 }

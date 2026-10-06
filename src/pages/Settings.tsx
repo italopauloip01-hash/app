@@ -9,6 +9,8 @@ import { Capacitor } from '@capacitor/core';
 import { SignaturePad } from '../components/SignaturePad';
 import { processSignaturePhoto } from '../utils/signature';
 import { toError } from '../lib/utils';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { InstallAppModal } from '../components/InstallAppModal';
 
 const isNativeApp = Capacitor.isNativePlatform();
 
@@ -32,6 +34,7 @@ export function Settings() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [isLoaded, setIsLoaded] = useState(false);
+    const { canInstall, isIOS, promptInstall, showInstructions, setShowInstructions } = usePWAInstall();
 
     // New Helper state
     const [newHelperName, setNewHelperName] = useState('');
@@ -593,6 +596,33 @@ export function Settings() {
                             </div>
                         </div>
 
+                        {/* Section 5: Mobile App Install */}
+                        {canInstall && (
+                            <div className="glass-panel p-6 sm:p-8 space-y-6 border-2 border-blue-500/20">
+                                <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 mb-2">
+                                    <Smartphone size={24} />
+                                    <h2 className="text-xl font-bold uppercase tracking-tight">Aplicativo no Celular</h2>
+                                </div>
+
+                                <div className="flex flex-col md:flex-row gap-6 items-center justify-between p-4 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/50">
+                                    <div>
+                                        <p className="font-bold text-slate-800 dark:text-slate-100">Instalar na Tela Inicial</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                            Instale o AirTech Pro para abrir como app nativo, sem as barras do navegador e com acesso instantâneo offline.
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={promptInstall}
+                                        className="flex-shrink-0 flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95"
+                                    >
+                                        <Download size={18} />
+                                        <span>Instalar Aplicativo</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Submit Section */}
                         <div className="pt-6 flex items-center justify-between gap-4">
                             <div className={`flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold transition-all duration-500 ${showSuccess ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}>
@@ -624,6 +654,12 @@ export function Settings() {
                     </span>
                 </div>
             </div>
+
+            <InstallAppModal
+                isOpen={showInstructions}
+                onClose={() => setShowInstructions(false)}
+                isIOS={isIOS}
+            />
         </div>
     );
 }

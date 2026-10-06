@@ -17,8 +17,11 @@ import { useState, useEffect } from 'react';
 import { syncDatabase, onSyncStateChange, subscribeToRealtime } from '../lib/supabaseOperations';
 import { OfflineIndicator } from './OfflineIndicator';
 import { BottomNav } from './BottomNav';
+import { InstallAppBanner } from './InstallAppBanner';
+import { InstallAppModal } from './InstallAppModal';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 import { APP_VERSION } from '../version';
-import { Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Smartphone, Download } from 'lucide-react';
 
 const NavItem = ({ to, icon: Icon, label, active, onClick }: { to: string, icon: LucideIcon, label: string, active: boolean, onClick?: () => void }) => (
     <Link
@@ -58,6 +61,7 @@ export function Layout() {
     const navigate = useNavigate();
     const settings = useSettings();
     const { user, signOut } = useAuth();
+    const { canInstall, isIOS, promptInstall, showInstructions, setShowInstructions } = usePWAInstall();
 
     const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
 
@@ -132,6 +136,20 @@ export function Layout() {
                     <NavItem to="/estimates" icon={FileText} label="Orçamentos" active={location.pathname.startsWith('/estimates')} onClick={() => setSidebarOpen(false)} />
                     <NavItem to="/helpers" icon={Users} label="Ajudantes" active={location.pathname.startsWith('/helpers')} onClick={() => setSidebarOpen(false)} />
                     <NavItem to="/settings" icon={Settings} label="Configurações" active={location.pathname === '/settings'} onClick={() => setSidebarOpen(false)} />
+                    {canInstall && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSidebarOpen(false);
+                                promptInstall();
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors font-medium text-left mt-2 border border-blue-200/60 dark:border-blue-800/40"
+                        >
+                            <Smartphone className="w-5 h-5 shrink-0 text-blue-600 dark:text-blue-400" />
+                            <span className="flex-1 font-semibold text-sm">Instalar no Celular</span>
+                            <Download className="w-4 h-4 text-blue-500 shrink-0" />
+                        </button>
+                    )}
                 </nav>
 
                 <div className="absolute bottom-0 w-full p-6 bg-gradient-to-t from-white/90 dark:from-slate-900 via-white/50 dark:via-slate-900/50 to-transparent">
@@ -163,6 +181,7 @@ export function Layout() {
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col relative max-w-full min-w-0 overflow-x-hidden">
+                <InstallAppBanner />
                 <OfflineIndicator />
                 {/* Header */}
                 <header className="sticky top-0 z-30 px-3 py-3 lg:px-6 lg:py-4 glass-panel m-2 mt-3 mb-0 lg:m-4 flex items-center justify-between shadow-sm overflow-hidden min-w-0">
@@ -218,6 +237,11 @@ export function Layout() {
             </main>
 
             <BottomNav />
+            <InstallAppModal
+                isOpen={showInstructions}
+                onClose={() => setShowInstructions(false)}
+                isIOS={isIOS}
+            />
         </div>
     );
 }
