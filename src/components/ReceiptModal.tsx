@@ -6,7 +6,7 @@ import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
-import { generatePixPayload } from '../utils/PixUtils';
+import { generatePixPayload, getPixPaymentUrl } from '../utils/PixUtils';
 
 import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 
@@ -55,10 +55,14 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
         text += `\nObrigado pela preferência!`;
 
         if (service.paymentStatus === 'Pendente' && pixData) {
+            const totalPrice = getServicePrice(service);
+            const paymentUrl = getPixPaymentUrl(pixData.copyAndPaste, totalPrice, companyName, pixKey, client.name);
             text += `\n\n──────────────────────────\n` +
-                `*PAGAMENTO VIA PIX (COPIA E COLA):*\n` +
-                `_(Copie o código abaixo e cole no aplicativo do seu banco)_\n\n` +
-                `${pixData.copyAndPaste}`;
+                `💳 *PAGAMENTO VIA PIX:*\n\n` +
+                `👉 *Clique no link para copiar com 1 toque:*\n` +
+                `${paymentUrl}\n\n` +
+                `*Código Pix Copia e Cola:*\n` +
+                `\`\`\`\n${pixData.copyAndPaste}\n\`\`\``;
         }
 
         share.sendWhatsApp(text, client.phone);

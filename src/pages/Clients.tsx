@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Client, Service } from '../types';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatSimpleDate, getServicePrice, formatCurrency } from '../utils/dateUtils';
-import { generatePixPayload } from '../utils/PixUtils';
+import { generatePixPayload, getPixPaymentUrl } from '../utils/PixUtils';
 
 export function Clients() {
     const clients = useClients();
@@ -101,10 +101,13 @@ export function Clients() {
         message += `Ficamos no aguardo. Obrigado pelo contato!`;
 
         if (pixData) {
+            const paymentUrl = getPixPaymentUrl(pixData.copyAndPaste, totalDebt, companyName, pixKey, client.name);
             message += `\n\n──────────────────────────\n` +
-                `*PAGAMENTO VIA PIX (COPIA E COLA):*\n` +
-                `_(Copie o código abaixo e cole no aplicativo do seu banco)_\n\n` +
-                `${pixData.copyAndPaste}`;
+                `💳 *PAGAMENTO VIA PIX:*\n\n` +
+                `👉 *Clique no link para copiar com 1 toque:*\n` +
+                `${paymentUrl}\n\n` +
+                `*Código Pix Copia e Cola:*\n` +
+                `\`\`\`\n${pixData.copyAndPaste}\n\`\`\``;
         }
 
         const encodedMessage = encodeURIComponent(message);

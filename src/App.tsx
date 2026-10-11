@@ -17,6 +17,7 @@ const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.S
 const Helpers = lazy(() => import('./pages/Helpers').then(m => ({ default: m.Helpers })));
 const Estimates = lazy(() => import('./pages/Estimates').then(m => ({ default: m.Estimates })));
 const Agenda = lazy(() => import('./pages/Agenda').then(m => ({ default: m.Agenda })));
+const PixPaymentPage = lazy(() => import('./pages/PixPaymentPage').then(m => ({ default: m.PixPaymentPage })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-[400px]">
@@ -43,6 +44,7 @@ function App() {
         <AutoBackupManager />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/pix" element={page(<PixPaymentPage />)} />
 
           <Route path="/" element={<ProtectedRoute />}>
             <Route element={<Layout />}>

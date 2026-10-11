@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { generatePixPayload, openPixWhatsApp, copyPixCode } from './PixUtils';
+import { generatePixPayload, openPixWhatsApp, copyPixCode, getPixPaymentUrl } from './PixUtils';
 
 describe('PixUtils', () => {
     let clipboardWriteText: ReturnType<typeof vi.fn>;
@@ -58,4 +58,19 @@ describe('PixUtils', () => {
             expect(clipboardWriteText).toHaveBeenCalledWith(rawPixCode);
         });
     });
+
+    describe('getPixPaymentUrl', () => {
+        it('gera URL da página /pix com os parâmetros corretos', () => {
+            const rawPixCode = '00020126580014br.gov.bcb.pix0136fakekey6304ABCD';
+            const urlString = getPixPaymentUrl(rawPixCode, 150.00, 'AirTech', '11999998888', 'João Silva');
+            expect(urlString).toContain('/pix?');
+            const parsedUrl = new URL(urlString);
+            expect(parsedUrl.searchParams.get('c')).toBe(rawPixCode);
+            expect(parsedUrl.searchParams.get('v')).toBe('150.00');
+            expect(parsedUrl.searchParams.get('nome')).toBe('AirTech');
+            expect(parsedUrl.searchParams.get('chave')).toBe('11999998888');
+            expect(parsedUrl.searchParams.get('cli')).toBe('João Silva');
+        });
+    });
 });
+

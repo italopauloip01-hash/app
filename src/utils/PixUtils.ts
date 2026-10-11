@@ -132,3 +132,28 @@ export async function copyPixCode(codeOrKey: string): Promise<boolean> {
         return false;
     }
 }
+
+/**
+ * Retorna a URL da página de pagamento Pix para envio no WhatsApp.
+ * Ao clicar no link, o cliente abre uma página com botão de 1 clique para copiar o código Pix.
+ */
+export function getPixPaymentUrl(payload: string, amount: number, companyName: string, pixKey?: string, clientName?: string): string {
+    let origin = 'https://airtech-pro.vercel.app';
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        const cur = window.location.origin;
+        if (cur.startsWith('http') && !cur.includes('localhost') && !cur.includes('127.0.0.1')) {
+            origin = cur;
+        }
+    }
+
+    const params = new URLSearchParams({
+        c: payload,
+        v: amount.toFixed(2),
+        nome: companyName,
+    });
+    if (pixKey) params.set('chave', pixKey);
+    if (clientName) params.set('cli', clientName);
+
+    return `${origin}/pix?${params.toString()}`;
+}
+

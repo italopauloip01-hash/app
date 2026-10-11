@@ -6,7 +6,7 @@ import { X, FileText, Share2, Image, Copy, Check } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
-import { generatePixPayload, copyPixCode } from '../utils/PixUtils';
+import { generatePixPayload, copyPixCode, getPixPaymentUrl } from '../utils/PixUtils';
 
 import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 
@@ -57,10 +57,13 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
         text += `\nSegue em anexo o comprovante detalhado.`;
 
         if (pixData && totalDebt > 0) {
+            const paymentUrl = getPixPaymentUrl(pixData.copyAndPaste, totalDebt, companyName, pixKey, client.name);
             text += `\n\n──────────────────────────\n` +
-                `*PAGAMENTO VIA PIX (COPIA E COLA):*\n` +
-                `_(Copie o código abaixo e cole no aplicativo do seu banco)_\n\n` +
-                `${pixData.copyAndPaste}`;
+                `💳 *PAGAMENTO VIA PIX:*\n\n` +
+                `👉 *Clique no link para copiar com 1 toque:*\n` +
+                `${paymentUrl}\n\n` +
+                `*Código Pix Copia e Cola:*\n` +
+                `\`\`\`\n${pixData.copyAndPaste}\n\`\`\``;
         }
 
         share.sendWhatsApp(text, client.phone);
