@@ -3,6 +3,8 @@
  * Standard defined by Banco Central do Brasil
  */
 
+import { formatWhatsAppNumber } from './phoneUtils';
+
 export function generatePixPayload(key: string, amount: number, merchantName: string, merchantCity: string = 'BRASILIA') {
     // Helper to format EMV tag (ID + Length + Value)
     const formatTag = (id: string, value: string) => {
@@ -86,4 +88,47 @@ function calculateCRC16(str: string): string {
     }
 
     return crc.toString(16).padStart(4, '0').toUpperCase();
+}
+
+/**
+ * Abre o WhatsApp enviando EXCLUSIVAMENTE o código Pix Copia e Cola (ou chave Pix).
+ * O texto vai 100% puro, sem nenhuma palavra ou quebra de linha adicional, para que
+ * a pessoa no WhatsApp apenas copie com 1 toque e cole direto no aplicativo do banco sem erros.
+ */
+export async function openPixWhatsApp(codeOrKey: string, phone?: string): Promise<void> {
+    const cleanCode = codeOrKey.trim();
+    try {
+        await navigator.clipboard?.writeText(cleanCode);
+    } catch { /* segue se a área de transferência não estiver disponível */ }
+
+    const number = phone ? formatWhatsAppNumber(phone) : '';
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(cleanCode)}`;
+    window.open(url, '_blank');
+}
+
+/**
+ * Copia o código Pix para a área de transferência do dispositivo.
+ */
+export async function copyPixCode(codeOrKey: string): Promise<boolean> {
+    const cleanCode = codeOrKey.trim();
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(cleanCode);
+            return true;
+        }
+    } catch { /* fallback */ }
+
+    try {
+        const textArea = document.createElement('textarea');
+        textArea.value = cleanCode;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        const success = document.execCommand('copy');
+        textArea.remove();
+        return success;
+    } catch {
+        return false;
+    }
 }

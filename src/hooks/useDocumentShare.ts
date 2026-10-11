@@ -11,15 +11,17 @@ type Busy = null | 'image' | 'whatsapp';
 export function useDocumentShare(elementId: string, fileName: string, title: string) {
     const [busy, setBusy] = useState<Busy>(null);
 
-    const run = async (kind: Exclude<Busy, null>, action: (dataUrl: string) => Promise<void>) => {
-        if (busy) return;
+    const run = async (kind: Exclude<Busy, null>, action: (dataUrl: string) => Promise<void>): Promise<boolean> => {
+        if (busy) return false;
         setBusy(kind);
         try {
             await action(await renderDocumentImage(elementId));
+            return true;
         } catch (caught) {
             const error = toError(caught);
             console.error('Falha ao gerar/compartilhar documento:', error);
             alert(`Não foi possível gerar a imagem: ${error.message || 'tente novamente.'}`);
+            return false;
         } finally {
             setBusy(null);
         }

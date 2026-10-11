@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useDocumentShare } from '../hooks/useDocumentShare';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { DocumentPreview } from './DocumentPreview';
-import { X, FileText, Share2, Image } from 'lucide-react';
+import { X, FileText, Share2, Image, Copy, Check } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
-import { generatePixPayload } from '../utils/PixUtils';
+import { generatePixPayload, openPixWhatsApp, copyPixCode } from '../utils/PixUtils';
+import { PixPromptModal } from './PixPromptModal';
 
 import { formatLocalDate, getServicePrice, parseMonetaryValue, parseLocalDate, formatCurrency } from '../utils/dateUtils';
 
@@ -22,6 +24,8 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
+    const [copiedPix, setCopiedPix] = useState(false);
+    const [showPixPrompt, setShowPixPrompt] = useState(false);
 
     // Sort pending services by date ascending
     const sortedPendingServices = [...pendingServices].sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
@@ -33,7 +37,21 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
 
     const handleGeneratePhoto = share.saveImage;
 
-    const handleShare = () => {
+    const handleSendPixOnly = () => {
+        if (!pixData) return;
+        openPixWhatsApp(pixData.copyAndPaste, client.phone);
+    };
+
+    const handleCopyPix = async () => {
+        if (!pixData) return;
+        const ok = await copyPixCode(pixData.copyAndPaste);
+        if (ok) {
+            setCopiedPix(true);
+            setTimeout(() => setCopiedPix(false), 2500);
+        }
+    };
+
+    const handleShare = async () => {
         let text = `*EXTRATO DE DÉBITOS - ${companyName.toUpperCase()}*\n\n` +
             `*Cliente:* ${client.name}\n` +
             `*Valor Total em Aberto:* ${formatCurrency((Number(totalDebt) || 0))}\n\n` +
@@ -44,11 +62,14 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
         });
 
         if (pixData && totalDebt > 0) {
-            text += `\n*Pagamento via Pix:*\n${pixData.copyAndPaste}\n\n`;
+            text += `\n*Pagamento via Pix:*\nChave: ${pixKey}\n_(O código Pix Copia e Cola será enviado a seguir em mensagem separada)_\n\n`;
         }
 
         text += `\nSegue em anexo o comprovante detalhado.`;
-        share.sendWhatsApp(text, client.phone);
+        const sent = await share.sendWhatsApp(text, client.phone);
+        if (sent && pixData && totalDebt > 0) {
+            setShowPixPrompt(true);
+        }
     };
 
     return (
@@ -173,12 +194,34 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                             </div>
                             <div className="flex-1">
                                 <h4 className="font-bold text-slate-800 mb-1 uppercase tracking-wider text-sm">Pague via PIX</h4>
-                                <p className="text-slate-500 text-xs mb-4">Aponte a câmera do celular para o QR Code ao lado ou utilize a chave abaixo.</p>
+                                <p className="text-slate-500 text-xs mb-3">Aponte a câmera do celular para o QR Code ao lado ou utilize a chave abaixo.</p>
 
                                 <div className="bg-white border border-slate-200 p-3 rounded-lg">
                                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">CHAVE PIX</p>
                                     <p className="font-mono text-slate-800 font-bold">{pixKey}</p>
                                     <p className="text-[10px] text-slate-500 mt-1">Beneficiário: {companyName}</p>
+                                </div>
+
+                                {/* Botões interativos para enviar separado ou copiar (ocultos na imagem gerada) */}
+                                <div className="no-print mt-3 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleSendPixOnly}
+                                        className="py-2 px-3 bg-[#25D366] hover:bg-[#1ebd5a] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                                        title="Enviar apenas o código Pix no WhatsApp para o cliente colar no banco"
+                                    >
+                                        <Share2 size={13} />
+                                        <span>Enviar Pix Separado (Zap)</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyPix}
+                                        className="py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                                        title="Copiar código Pix Copia e Cola"
+                                    >
+                                        {copiedPix ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                                        <span>{copiedPix ? 'Copiado!' : 'Copiar Pix (Copia e Cola)'}</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -214,6 +257,35 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                     </DocumentPreview>
                 </div>
 
+                {/* Pix Quick Action Bar */}
+                {pixData && totalDebt > 0 && (
+                    <div className="dark:bg-slate-800/90 dark:border-slate-800 px-5 py-2.5 bg-emerald-50/80 border-t border-emerald-100 flex items-center justify-between gap-3 text-xs z-10 w-full shrink-0">
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium truncate">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
+                            <span className="truncate"><strong>Pix Copia e Cola:</strong> pronto para colar no banco</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={handleCopyPix}
+                                className="px-2.5 py-1.5 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+                            >
+                                {copiedPix ? <Check size={13} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+                                <span>{copiedPix ? 'Copiado' : 'Copiar'}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSendPixOnly}
+                                className="px-3 py-1.5 bg-[#25D366] hover:bg-[#1ebd5a] text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                                title="Enviar mensagem separada no WhatsApp contendo apenas o código Pix"
+                            >
+                                <Share2 size={13} />
+                                <span>Enviar Pix Separado</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Footer Buttons */}
                 <div className="dark:bg-slate-900 dark:border-slate-800 p-5 border-t border-slate-100 bg-white flex flex-row gap-3 z-10 w-full shrink-0">
                     <button
@@ -234,6 +306,16 @@ export function DebtStatementModal({ isOpen, onClose, client, pendingServices }:
                 </div>
             </div>
 
+            {pixData && (
+                <PixPromptModal
+                    isOpen={showPixPrompt}
+                    onClose={() => setShowPixPrompt(false)}
+                    pixCode={pixData.copyAndPaste}
+                    phone={client.phone}
+                    clientName={client.name}
+                    title="Extrato Enviado!"
+                />
+            )}
         </div >
     );
 }

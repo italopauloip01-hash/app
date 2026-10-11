@@ -1,21 +1,24 @@
 import { isOwed } from '../utils/debt';
 import { useState, useMemo } from 'react';
 import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2, Pencil } from 'lucide-react';
-import { useClients, useServices, useCompanyName } from '../hooks/useData';
+import { useClients, useServices, useCompanyName, useSettings } from '../hooks/useData';
 import { deleteClient, deleteService } from '../lib/supabaseOperations';
 import { ClientForm } from '../components/ClientForm';
 import { DebtStatementModal } from '../components/DebtStatementModal';
 import { GlobalDebtStatementModal } from '../components/GlobalDebtStatementModal';
 import { EstimateModal } from '../components/EstimateModal';
+import { PixPromptModal } from '../components/PixPromptModal';
 import { useNavigate } from 'react-router-dom';
 import type { Client, Service } from '../types';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
 import { formatSimpleDate, getServicePrice, formatCurrency } from '../utils/dateUtils';
+import { generatePixPayload } from '../utils/PixUtils';
 
 export function Clients() {
     const clients = useClients();
     const allServices = useServices();
     const companyName = useCompanyName();
+    const settings = useSettings();
     const navigate = useNavigate();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,6 +30,7 @@ export function Clients() {
     const [isGlobalStatementOpen, setIsGlobalStatementOpen] = useState(false);
     const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
     const [selectedClientForEstimate, setSelectedClientForEstimate] = useState<Client | null>(null);
+    const [pixChargePrompt, setPixChargePrompt] = useState<{ client: Client; pixCode: string } | null>(null);
 
     // Calculate debt per client - memoized to avoid recalculating on every render
     const clientDebts = useMemo(() => {
@@ -84,6 +88,8 @@ export function Clients() {
         e.stopPropagation();
 
         const pendingServices = allServices?.filter(s => s.clientId === client.id && isOwed(s)) || [];
+        const pixKey = settings?.pixKey || '';
+        const pixData = pixKey && totalDebt > 0 ? generatePixPayload(pixKey, totalDebt, companyName) : null;
 
         let message = `*${companyName} - Lembrete de Pagamento* ❄️💰\n\n`;
         message += `Olá, *${client.name}*!\n`;
@@ -94,11 +100,20 @@ export function Clients() {
         });
 
         message += `\n*Total em Aberto: ${formatCurrency((Number(totalDebt) || 0))}*\n\n`;
+
+        if (pixData) {
+            message += `*Pagamento via Pix:*\nChave: ${pixKey}\n_(O código Pix Copia e Cola será enviado a seguir em mensagem separada)_\n\n`;
+        }
+
         message += `Ficamos no aguardo. Obrigado pelo contato!`;
 
         const encodedMessage = encodeURIComponent(message);
         const whatsappUrl = `https://wa.me/${formatWhatsAppNumber(client.phone)}?text=${encodedMessage}`;
         window.open(whatsappUrl, '_blank');
+
+        if (pixData) {
+            setPixChargePrompt({ client, pixCode: pixData.copyAndPaste });
+        }
     };
 
     const handleOpenStatement = (e: React.MouseEvent, client: Client) => {
@@ -294,6 +309,16 @@ export function Clients() {
                         setSelectedClientForEstimate(null);
                     }}
                     initialClient={selectedClientForEstimate || undefined}
+                />
+            )}
+            {pixChargePrompt && (
+                <PixPromptModal
+                    isOpen={!!pixChargePrompt}
+                    onClose={() => setPixChargePrompt(null)}
+                    pixCode={pixChargePrompt.pixCode}
+                    phone={pixChargePrompt.client.phone}
+                    clientName={pixChargePrompt.client.name}
+                    title="Cobrança Enviada!"
                 />
             )}
         </div>

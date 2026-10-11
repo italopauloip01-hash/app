@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { useDocumentShare } from '../hooks/useDocumentShare';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 import { DocumentPreview } from './DocumentPreview';
-import { X, Share2, Image } from 'lucide-react';
+import { X, Share2, Image, Copy, Check } from 'lucide-react';
 import type { Client, Service } from '../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useSettings, DEFAULT_COMPANY_NAME } from '../hooks/useData';
-import { generatePixPayload } from '../utils/PixUtils';
+import { generatePixPayload, openPixWhatsApp, copyPixCode } from '../utils/PixUtils';
+import { PixPromptModal } from './PixPromptModal';
 
 import { parseLocalDate, formatLocalDate, getServicePrice, parseMonetaryValue, formatCurrency } from '../utils/dateUtils';
 
@@ -23,13 +25,28 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
     const settings = useSettings();
     const companyName = settings?.name?.trim() || DEFAULT_COMPANY_NAME;
     const pixKey = settings?.pixKey || '';
+    const [copiedPix, setCopiedPix] = useState(false);
+    const [showPixPrompt, setShowPixPrompt] = useState(false);
 
     const pixData = pixKey ? generatePixPayload(pixKey, Number(service.price) || 0, companyName) : null;
 
     if (!isOpen) return null;
 
+    const handleSendPixOnly = () => {
+        if (!pixData) return;
+        openPixWhatsApp(pixData.copyAndPaste, client.phone);
+    };
 
-    const handleShare = () => {
+    const handleCopyPix = async () => {
+        if (!pixData) return;
+        const ok = await copyPixCode(pixData.copyAndPaste);
+        if (ok) {
+            setCopiedPix(true);
+            setTimeout(() => setCopiedPix(false), 2500);
+        }
+    };
+
+    const handleShare = async () => {
         let text = `*RECIBO DE SERVIÇO - ${companyName.toUpperCase()}*\n\n` +
             `*Cliente:* ${client.name}\n` +
             `*Data:* ${formatLocalDate(service.date)}\n` +
@@ -54,11 +71,14 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
         }
 
         if (service.paymentStatus === 'Pendente' && pixData) {
-            text += `\n*Pagamento via Pix:*\n${pixData.copyAndPaste}\n\n`;
+            text += `\n*Pagamento via Pix:*\nChave: ${pixKey}\n_(O código Pix Copia e Cola será enviado a seguir em mensagem separada)_\n\n`;
         }
 
         text += `\nObrigado pela preferência!`;
-        share.sendWhatsApp(text, client.phone);
+        const sent = await share.sendWhatsApp(text, client.phone);
+        if (sent && service.paymentStatus === 'Pendente' && pixData) {
+            setShowPixPrompt(true);
+        }
     };
 
     const handleGeneratePhoto = share.saveImage;
@@ -73,6 +93,16 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                         Visualizar Recibo
                     </h2>
                     <div className="flex items-center gap-2">
+                        {service.paymentStatus === 'Pendente' && pixData && (
+                            <button
+                                onClick={handleSendPixOnly}
+                                className="p-2.5 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors flex items-center gap-1.5 font-bold text-sm"
+                                title="Enviar apenas o código Pix Copia e Cola no WhatsApp para o cliente colar no banco"
+                            >
+                                <Share2 size={18} />
+                                <span className="hidden sm:inline">Pix Separado</span>
+                            </button>
+                        )}
                         <button
                             onClick={handleShare}
                             className="p-2.5 text-green-600 hover:bg-green-50 rounded-xl transition-colors flex items-center gap-2 font-bold text-sm"
@@ -239,6 +269,35 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                         }
                     `}} />
 
+                {/* Pix Quick Action Bar */}
+                {service.paymentStatus === 'Pendente' && pixData && (
+                    <div className="dark:bg-slate-800/90 dark:border-slate-800 px-5 py-2.5 bg-emerald-50/80 border-t border-emerald-100 flex items-center justify-between gap-3 text-xs z-10 w-full shrink-0">
+                        <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium truncate">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
+                            <span className="truncate"><strong>Pix Copia e Cola:</strong> pronto para colar no banco</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button
+                                type="button"
+                                onClick={handleCopyPix}
+                                className="px-2.5 py-1.5 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+                            >
+                                {copiedPix ? <Check size={13} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+                                <span>{copiedPix ? 'Copiado' : 'Copiar'}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSendPixOnly}
+                                className="px-3 py-1.5 bg-[#25D366] hover:bg-[#1ebd5a] text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+                                title="Enviar mensagem separada no WhatsApp contendo apenas o código Pix"
+                            >
+                                <Share2 size={13} />
+                                <span>Enviar Pix Separado</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Footer Buttons FIXOS */}
                 <div className="dark:bg-slate-900 dark:border-slate-800 p-4 border-t border-slate-100 bg-slate-50 flex flex-row gap-3 no-print flex-shrink-0 z-10 w-full">
                     <button
@@ -256,6 +315,17 @@ export function ReceiptModal({ isOpen, onClose, service, client }: ReceiptModalP
                     </button>
                 </div>
             </div>
+
+            {service.paymentStatus === 'Pendente' && pixData && (
+                <PixPromptModal
+                    isOpen={showPixPrompt}
+                    onClose={() => setShowPixPrompt(false)}
+                    pixCode={pixData.copyAndPaste}
+                    phone={client.phone}
+                    clientName={client.name}
+                    title="Recibo Enviado!"
+                />
+            )}
         </div>
     );
 }
