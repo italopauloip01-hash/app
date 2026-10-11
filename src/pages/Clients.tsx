@@ -7,7 +7,6 @@ import { ClientForm } from '../components/ClientForm';
 import { DebtStatementModal } from '../components/DebtStatementModal';
 import { GlobalDebtStatementModal } from '../components/GlobalDebtStatementModal';
 import { EstimateModal } from '../components/EstimateModal';
-import { PixPromptModal } from '../components/PixPromptModal';
 import { useNavigate } from 'react-router-dom';
 import type { Client, Service } from '../types';
 import { formatWhatsAppNumber } from '../utils/phoneUtils';
@@ -30,7 +29,6 @@ export function Clients() {
     const [isGlobalStatementOpen, setIsGlobalStatementOpen] = useState(false);
     const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
     const [selectedClientForEstimate, setSelectedClientForEstimate] = useState<Client | null>(null);
-    const [pixChargePrompt, setPixChargePrompt] = useState<{ client: Client; pixCode: string } | null>(null);
 
     // Calculate debt per client - memoized to avoid recalculating on every render
     const clientDebts = useMemo(() => {
@@ -100,20 +98,18 @@ export function Clients() {
         });
 
         message += `\n*Total em Aberto: ${formatCurrency((Number(totalDebt) || 0))}*\n\n`;
+        message += `Ficamos no aguardo. Obrigado pelo contato!`;
 
         if (pixData) {
-            message += `*Pagamento via Pix:*\nChave: ${pixKey}\n_(O código Pix Copia e Cola será enviado a seguir em mensagem separada)_\n\n`;
+            message += `\n\n──────────────────────────\n` +
+                `*PAGAMENTO VIA PIX (COPIA E COLA):*\n` +
+                `_(Copie o código abaixo e cole no aplicativo do seu banco)_\n\n` +
+                `${pixData.copyAndPaste}`;
         }
-
-        message += `Ficamos no aguardo. Obrigado pelo contato!`;
 
         const encodedMessage = encodeURIComponent(message);
         const whatsappUrl = `https://wa.me/${formatWhatsAppNumber(client.phone)}?text=${encodedMessage}`;
         window.open(whatsappUrl, '_blank');
-
-        if (pixData) {
-            setPixChargePrompt({ client, pixCode: pixData.copyAndPaste });
-        }
     };
 
     const handleOpenStatement = (e: React.MouseEvent, client: Client) => {
@@ -309,16 +305,6 @@ export function Clients() {
                         setSelectedClientForEstimate(null);
                     }}
                     initialClient={selectedClientForEstimate || undefined}
-                />
-            )}
-            {pixChargePrompt && (
-                <PixPromptModal
-                    isOpen={!!pixChargePrompt}
-                    onClose={() => setPixChargePrompt(null)}
-                    pixCode={pixChargePrompt.pixCode}
-                    phone={pixChargePrompt.client.phone}
-                    clientName={pixChargePrompt.client.name}
-                    title="Cobrança Enviada!"
                 />
             )}
         </div>
