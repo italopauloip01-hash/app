@@ -1,6 +1,6 @@
 import { isOwed } from '../utils/debt';
 import { useState, useMemo } from 'react';
-import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2, Pencil } from 'lucide-react';
+import { Search, Plus, Phone, MapPin, ChevronRight, UserX, AlertCircle, Send, FileText, Trash2, Pencil, Eye, EyeOff } from 'lucide-react';
 import { useClients, useServices, useCompanyName, useSettings } from '../hooks/useData';
 import { deleteClient, deleteService } from '../lib/supabaseOperations';
 import { ClientForm } from '../components/ClientForm';
@@ -29,6 +29,25 @@ export function Clients() {
     const [isGlobalStatementOpen, setIsGlobalStatementOpen] = useState(false);
     const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
     const [selectedClientForEstimate, setSelectedClientForEstimate] = useState<Client | null>(null);
+
+    // Modo privacidade: ocultar débitos por padrão para proteger na frente de clientes
+    const [hideDebts, setHideDebts] = useState<boolean>(() => {
+        try {
+            return localStorage.getItem('airtech:hide_client_debts') !== 'false'; // true por padrão
+        } catch {
+            return true;
+        }
+    });
+
+    const toggleHideDebts = () => {
+        setHideDebts(prev => {
+            const next = !prev;
+            try {
+                localStorage.setItem('airtech:hide_client_debts', String(next));
+            } catch { /* ignore */ }
+            return next;
+        });
+    };
 
     // Calculate debt per client - memoized to avoid recalculating on every render
     const clientDebts = useMemo(() => {
@@ -142,13 +161,28 @@ export function Clients() {
                     <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Clientes</h1>
                     <p className="text-slate-500">Gerencie sua base de clientes</p>
                 </div>
-                <button
-                    onClick={handleAddNew}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-95"
-                >
-                    <Plus size={20} />
-                    <span>Novo Cliente</span>
-                </button>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                        type="button"
+                        onClick={toggleHideDebts}
+                        className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-all text-sm font-semibold ${
+                            hideDebts 
+                                ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50' 
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}
+                        title={hideDebts ? "Débitos ocultos (Modo Privacidade). Clique para ver valores" : "Valores visíveis. Clique para ocultar na frente de clientes"}
+                    >
+                        {hideDebts ? <EyeOff size={18} className="text-amber-600 dark:text-amber-400" /> : <Eye size={18} />}
+                        <span className="hidden sm:inline">{hideDebts ? 'Valores Ocultos' : 'Valores Visíveis'}</span>
+                    </button>
+                    <button
+                        onClick={handleAddNew}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-500/30 transition-all active:scale-95 font-medium"
+                    >
+                        <Plus size={20} />
+                        <span>Novo Cliente</span>
+                    </button>
+                </div>
             </div>
 
             <div className="glass-panel p-4 flex items-center gap-4">
@@ -168,17 +202,39 @@ export function Clients() {
                         <AlertCircle size={24} className="text-white" />
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className="text-red-50 text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Total de Débitos Pendentes (Geral)</p>
-                        <h3 className="text-2xl font-black truncate drop-shadow-md">{formatCurrency((Number(totalGlobalDebt) || 0))}</h3>
+                        <div className="flex items-center gap-2">
+                            <p className="text-red-50 text-[10px] font-bold uppercase tracking-wider text-shadow-sm">Total de Débitos Pendentes (Geral)</p>
+                            <button
+                                type="button"
+                                onClick={toggleHideDebts}
+                                className="p-1 rounded-md bg-white/10 hover:bg-white/20 transition-colors text-white/90"
+                                title={hideDebts ? "Mostrar valores" : "Ocultar valores (modo privacidade)"}
+                            >
+                                {hideDebts ? <Eye size={14} /> : <EyeOff size={14} />}
+                            </button>
+                        </div>
+                        <h3 className="text-2xl font-black truncate drop-shadow-md">
+                            {hideDebts ? 'R$ ••••••' : formatCurrency((Number(totalGlobalDebt) || 0))}
+                        </h3>
                     </div>
-                    <button
-                        onClick={() => setIsGlobalStatementOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-white text-sm font-bold shadow-sm transition-all"
-                    >
-                        <FileText size={18} />
-                        <span className="hidden sm:inline">Relatório</span>
-                        <span className="sm:hidden">PDF</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={toggleHideDebts}
+                            className="p-2 sm:hidden bg-white/20 hover:bg-white/30 rounded-xl text-white text-xs font-bold transition-all"
+                            title={hideDebts ? "Mostrar valores" : "Ocultar valores"}
+                        >
+                            {hideDebts ? <Eye size={18} /> : <EyeOff size={18} />}
+                        </button>
+                        <button
+                            onClick={() => setIsGlobalStatementOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-white text-sm font-bold shadow-sm transition-all"
+                        >
+                            <FileText size={18} />
+                            <span className="hidden sm:inline">Relatório</span>
+                            <span className="sm:hidden">PDF</span>
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -236,9 +292,15 @@ export function Clients() {
 
                                 {clientDebts.get(client.id!) && clientDebts.get(client.id!)! > 0 && (
                                     <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between bg-red-50 dark:bg-red-900/20 p-2 rounded-xl border border-red-100 dark:border-red-900/20 gap-2 sm:gap-0">
-                                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 truncate">
+                                        <div 
+                                            onClick={(e) => { e.stopPropagation(); toggleHideDebts(); }} 
+                                            className="flex items-center gap-2 text-red-600 dark:text-red-400 truncate cursor-pointer hover:opacity-80 transition-opacity"
+                                            title="Clique para alternar visualização do valor"
+                                        >
                                             <AlertCircle size={14} className="flex-shrink-0" />
-                                            <span className="text-xs font-black uppercase tracking-tight truncate">DÉBITO: {formatCurrency((Number(clientDebts.get(client.id!)) || 0))}</span>
+                                            <span className="text-xs font-black uppercase tracking-tight truncate">
+                                                DÉBITO: {hideDebts ? 'R$ ••••••' : formatCurrency((Number(clientDebts.get(client.id!)) || 0))}
+                                            </span>
                                         </div>
                                         <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                                             <button
